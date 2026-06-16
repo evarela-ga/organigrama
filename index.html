@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>GoodApps SAS — Organigrama interactivo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ===== Base (tomado del diseño) ===== */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #EEF1F4; }
+  body { font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #16242E; -webkit-font-smoothing: antialiased; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #C2CCD3; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  input, select, button, textarea { font-family: inherit; }
+  @keyframes ogSlideIn { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes ogFade { from { opacity: 0; } to { opacity: 1; } }
+  @media print {
+    .og-noprint { display: none !important; }
+    html, body { background: #fff; }
+    #ogCanvas { position: static !important; }
+    #ogLayer { transform: none !important; position: static !important; }
+  }
+
+  .og-root { height: 100vh; width: 100vw; display: flex; flex-direction: column; background: #EEF1F4; overflow: hidden; }
+  .og-canvas-wrap { flex: 1 1 auto; position: relative; overflow: hidden; }
+  #ogCanvas { position: absolute; inset: 0; overflow: hidden; cursor: grab; touch-action: none;
+    background-color: #EEF1F4; background-image: radial-gradient(#D4DBE0 1.1px, transparent 1.1px); background-size: 26px 26px; }
+  #ogLayer { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+
+  /* ===== Controles reutilizables del editor ===== */
+  .btn { height: 34px; padding: 0 13px; border-radius: 9px; border: 1px solid #DBE2E7; background: #fff; color: #3C4B55;
+    font-size: 12.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .btn:hover { background: #F2F5F7; }
+  .btn-primary { background: #65EAA4; border-color: #65EAA4; color: #0A2A3A; }
+  .btn-primary:hover { filter: brightness(1.03); background: #65EAA4; }
+  .btn-dark { background: #0F3E57; border-color: #0F3E57; color: #fff; }
+  .btn-dark:hover { background: #16526F; }
+  .btn-danger { background: #FBF1F0; border-color: #E3D6D5; color: #B5413C; }
+  .btn-danger:hover { background: #F6E4E2; }
+  .btn-ghost { background: transparent; border-color: transparent; color: #5A6B75; }
+  .btn-ghost:hover { background: #EEF1F4; }
+  .btn-sm { height: 28px; padding: 0 9px; font-size: 11.5px; border-radius: 8px; }
+
+  /* ===== Formularios (ficha edición / organización) ===== */
+  .f-section { margin-top: 16px; }
+  .f-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #93A1AB;
+    font-family: 'IBM Plex Mono', monospace; margin-bottom: 6px; display: block; }
+  .f-input, .f-textarea, .f-select { width: 100%; border: 1px solid #DBE2E7; border-radius: 9px; padding: 8px 11px;
+    font-size: 13px; color: #16242E; background: #F7F9FA; outline: none; }
+  .f-input:focus, .f-textarea:focus, .f-select:focus { border-color: #65EAA4; background: #fff; box-shadow: 0 0 0 3px rgba(101,234,164,.25); }
+  .f-textarea { min-height: 68px; resize: vertical; line-height: 1.45; }
+  .f-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  .f-list-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .f-list-row .f-input { flex: 1; }
+  .f-iconbtn { flex: 0 0 auto; width: 30px; height: 34px; border-radius: 8px; border: 1px solid #E3D6D5; background: #FBF1F0;
+    color: #B5413C; font-size: 15px; cursor: pointer; line-height: 1; }
+  .f-hint { font-size: 11px; color: #93A1AB; margin-top: 4px; }
+
+  /* ===== Toast ===== */
+  #ogToast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 80; display: flex;
+    flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+  .og-toast { background: #16242E; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 10px;
+    box-shadow: 0 8px 26px rgba(15,62,87,.28); animation: ogFade .18s; max-width: 90vw; }
+  .og-toast.ok { background: #1F6E62; }
+  .og-toast.err { background: #B5413C; }
+
+  /* ===== Banner cambios locales ===== */
+  #ogDirty { display: none; }
+  #ogDirty.on { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 7px 16px;
+    background: #FCF6EC; border-bottom: 1px solid #F0E2C4; color: #7A5A22; font-size: 12.5px; }
+
+  @media (max-width: 720px) {
+    .f-grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div id="app" class="og-root">
+
+  <header id="ogHeader" class="og-noprint" style="flex:0 0 auto;"></header>
+  <div id="ogDirty" class="og-noprint"></div>
+  <div id="ogToolbar" class="og-noprint" style="flex:0 0 auto;"></div>
+
+  <div class="og-canvas-wrap">
+    <div id="ogCanvas">
+      <div id="ogLayer"></div>
+      <div id="ogMetrics" class="og-noprint" style="position:absolute; top:14px; left:14px; display:flex; gap:8px; flex-wrap:wrap; max-width:62%;"></div>
+      <div id="ogLegend" class="og-noprint" style="position:absolute; bottom:14px; left:14px;"></div>
+      <div id="ogAddBtn" class="og-noprint" style="position:absolute; bottom:16px; right:16px;"></div>
+      <div id="ogEmpty" class="og-noprint" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px; color:#7A8893;">
+        <div style="width:34px; height:34px; border:3px solid #D4DBE0; border-top-color:#2A9D8F; border-radius:50%;"></div>
+        <div style="font-size:13px; font-family:'IBM Plex Mono',monospace;">Cargando organigrama…</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="ogPanel"></div>
+  <div id="ogDiag"></div>
+  <div id="ogOrg"></div>
+  <div id="ogToast"></div>
+  <input id="ogFile" type="file" accept=".js,.json,.txt,application/json,text/javascript" style="display:none">
+</div>
+
+<!-- ===== Base de datos en texto plano (editable / commiteable a GitHub) ===== -->
+<script src="org-data.js"></script>
+
+<!-- ===== Aplicación ===== -->
+<script>
+(function () {
+  "use strict";
+
+  // ============================================================
+  //  Constantes y utilidades
+  // ============================================================
+  var BRAND = "#0F3E57", ACCENT = "#65EAA4";
+  var NODE_W = 248, NODE_H = 96, H_GAP = 78, V_GAP = 20;
+  var LS_KEY = "goodapps_org_v1";
+  var STATUS_ORDER = ["Ocupado", "Vacante", "En búsqueda", "Onboarding", "Licencia", "Interino"];
+  var DEFAULT_STATUSES = {
+    "Ocupado": { color: "#2E9E6B" }, "Vacante": { color: "#E0524D" },
+    "En búsqueda": { color: "#E08A3C" }, "Onboarding": { color: "#3B82C4" },
+    "Licencia": { color: "#9A8FB0" }, "Interino": { color: "#C9A227" }
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function today() { return new Date().toISOString().slice(0, 10); }
+  function uid(title) {
+    var slug = String(title || "rol").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 18) || "rol";
+    return slug + "-" + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);
+  }
+
+  // ============================================================
+  //  Estado de la app
+  // ============================================================
+  var App = {
+    data: null,        // organigrama activo (lo que se ve y edita)
+    fileData: null,    // copia del archivo org-data.js (para "descartar cambios locales")
+    dirty: false,      // hay cambios locales sin exportar
+    state: {
+      view: "jerarquica",
+      collapsed: {},
+      filters: { area: "", sede: "", estado: "", seniority: "" },
+      search: "",
+      selectedId: null,
+      showDiag: false,
+      showOrg: false,
+      showDotted: true,
+      editMode: false,
+      panelMode: "view",   // "view" | "edit"
+      draft: null,
+      draftIsNew: false,
+      zoom: 1, panX: 60, panY: 60
+    },
+    _bounds: null
+  };
+
+  // ============================================================
+  //  Carga / persistencia
+  // ============================================================
+  function normalize(d) {
+    if (!d || typeof d !== "object") return null;
+    d.meta = d.meta || {};
+    if (!d.meta.empresa) d.meta.empresa = "Organización";
+    if (!d.meta.subtitle) d.meta.subtitle = "Organigrama interactivo";
+    if (!d.areas || typeof d.areas !== "object") d.areas = {};
+    if (!d.statuses || typeof d.statuses !== "object") d.statuses = clone(DEFAULT_STATUSES);
+    if (!Array.isArray(d.nodes)) d.nodes = [];
+    if (!Array.isArray(d.changelog)) d.changelog = [];
+    d.nodes.forEach(function (n) {
+      n.dotted = Array.isArray(n.dotted) ? n.dotted : [];
+      n.responsibilities = Array.isArray(n.responsibilities) ? n.responsibilities : [];
+      n.kpis = Array.isArray(n.kpis) ? n.kpis : [];
+      if (n.headcount == null) n.headcount = 1;
+    });
+    return d;
+  }
+  function valid(d) { return !!(d && d.meta && d.areas && d.nodes && Array.isArray(d.nodes)); }
+
+  function loadData() {
+    var base = (typeof window !== "undefined" && window.GOODAPPS_ORG) ? clone(window.GOODAPPS_ORG) : null;
+    App.fileData = normalize(base) || normalize({ meta: {}, areas: { general: { label: "General", color: BRAND } }, nodes: [] });
+
+    var localRaw = null;
+    try { localRaw = localStorage.getItem(LS_KEY); } catch (e) {}
+    if (localRaw) {
+      try {
+        var local = normalize(JSON.parse(localRaw));
+        if (valid(local)) { App.data = local; App.dirty = true; return; }
+      } catch (e) {}
+    }
+    App.data = clone(App.fileData);
+    App.dirty = false;
+  }
+
+  function saveLocal() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(App.data)); } catch (e) {}
+  }
+
+  // Aplica una mutación al dataset, marca cambios locales y opcionalmente loguea en el changelog.
+  function commit(mutator, logDetail) {
+    mutator(App.data);
+    if (logDetail) {
+      App.data.changelog = App.data.changelog || [];
+      App.data.changelog.unshift({ fecha: today(), autor: "Editor web", detalle: logDetail });
+      if (App.data.changelog.length > 200) App.data.changelog.length = 200;
+    }
+    App.dirty = true;
+    saveLocal();
+  }
+
+  function discardLocal() {
+    App.data = clone(App.fileData);
+    App.dirty = false;
+    try { localStorage.removeItem(LS_KEY); } catch (e) {}
+    App.state.selectedId = null; App.state.draft = null; App.state.collapsed = {};
+    renderAll(); fit();
+    toast("Cambios locales descartados — volviste al archivo org-data.js", "ok");
+  }
+
+  // ============================================================
+  //  Índice / cálculos del árbol (portado del diseño)
+  // ============================================================
+  function idx() {
+    var d = App.data, byId = {}, children = {}, roots = [];
+    d.nodes.forEach(function (n) { byId[n.id] = n; children[n.id] = []; });
+    d.nodes.forEach(function (n) {
+      if (n.reportsTo && byId[n.reportsTo]) children[n.reportsTo].push(n.id);
+      else roots.push(n.id);
+    });
+    return { byId: byId, children: children, roots: roots };
+  }
+  function isVac(n) { return n.status === "Vacante" || n.status === "En búsqueda"; }
+  function overdue(n) {
+    if (!n.nextReview || n.nextReview === "—") return false;
+    var dt = new Date(n.nextReview);
+    return !isNaN(dt) && dt < new Date(today());
+  }
+  function matchesFilters(n) {
+    var f = App.state.filters;
+    if (f.area && n.area !== f.area) return false;
+    if (f.sede && n.location !== f.sede) return false;
+    if (f.estado && n.status !== f.estado) return false;
+    if (f.seniority && n.seniority !== f.seniority) return false;
+    return true;
+  }
+  function alertsFor(n, dr) {
+    var a = [];
+    if (dr > 7) a.push({ k: "span", title: "Span de control alto (" + dr + " reportes)", icon: "▦", color: "#E0524D" });
+    if (n.critical && !n.successor) a.push({ k: "succ", title: "Rol crítico sin sucesor", icon: "⚑", color: "#E08A3C" });
+    if (overdue(n)) a.push({ k: "rev", title: "Revisión vencida (" + n.nextReview + ")", icon: "◷", color: "#C9A227" });
+    return a;
+  }
+
+  function buildView(ix) {
+    var d = App.data, view = App.state.view;
+    if (view === "jerarquica") return { roots: ix.roots, ch: ix.children, virt: {} };
+    var virt = {}, ch = {}, rootId = "v:root";
+    virt[rootId] = { id: rootId, title: d.meta.empresa, kind: "root" };
+    ch[rootId] = [];
+    function ensure(gid, label, color) {
+      if (!virt[gid]) { virt[gid] = { id: gid, title: label, kind: "group", color: color }; ch[gid] = []; ch[rootId].push(gid); }
+      return gid;
+    }
+    var base = d.nodes;
+    if (view === "vacantes") base = d.nodes.filter(isVac);
+    if (view === "criticos") base = d.nodes.filter(function (n) { return n.critical; });
+    base.forEach(function (n) {
+      var gid;
+      if (view === "funcion") gid = ensure("v:a:" + n.area, (d.areas[n.area] ? d.areas[n.area].label : n.area), (d.areas[n.area] ? d.areas[n.area].color : "#566B7A"));
+      else if (view === "sede") gid = ensure("v:s:" + n.location, n.location || "—", "#566B7A");
+      else if (view === "vacantes") gid = ensure("v:g", "Vacantes y búsquedas", "#E0524D");
+      else gid = ensure("v:g", "Roles críticos", "#9A6A3A");
+      ch[gid].push(n.id);
+    });
+    return { roots: [rootId], ch: ch, virt: virt };
+  }
+
+  function layoutTree(vw) {
+    var pos = {}, ROW = NODE_H + V_GAP, nextY = 0, st = App.state;
+    function place(id, depth) {
+      var kids = st.collapsed[id] ? [] : (vw.ch[id] || []);
+      pos[id] = { x: depth * (NODE_W + H_GAP), y: 0, depth: depth };
+      if (kids.length === 0) { pos[id].y = nextY; nextY += ROW; }
+      else {
+        kids.forEach(function (k) { place(k, depth + 1); });
+        pos[id].y = (pos[kids[0]].y + pos[kids[kids.length - 1]].y) / 2;
+      }
+    }
+    vw.roots.forEach(function (r, i) { if (i > 0) nextY += ROW * 0.6; place(r, 0); });
+    return pos;
+  }
+
+  function metricsOf(d, ix) {
+    var all = d.nodes;
+    var totalRoles = all.length;
+    var headcount = all.reduce(function (s, n) { return s + (Number(n.headcount) || 1); }, 0);
+    var managers = all.filter(function (n) { return ix.children[n.id].length > 0; });
+    var vac = all.filter(isVac);
+    var pctVac = totalRoles ? Math.round(vac.length / totalRoles * 100) : 0;
+    var maxDepth = 0;
+    function depthOf(id, dp) { maxDepth = Math.max(maxDepth, dp); ix.children[id].forEach(function (c) { depthOf(c, dp + 1); }); }
+    ix.roots.forEach(function (r) { depthOf(r, 0); });
+    var capas = totalRoles ? maxDepth + 1 : 0;
+    var spans = managers.map(function (m) { return ix.children[m.id].length; });
+    var avgSpan = spans.length ? (spans.reduce(function (a, b) { return a + b; }, 0) / spans.length) : 0;
+    var maxSpan = spans.length ? Math.max.apply(null, spans) : 0;
+    return { all: all, totalRoles: totalRoles, headcount: headcount, managers: managers, vac: vac, pctVac: pctVac, capas: capas, spans: spans, avgSpan: avgSpan, maxSpan: maxSpan };
+  }
+
+  // ============================================================
+  //  Render: estilos auxiliares (portados)
+  // ============================================================
+  function chipStyle(bg, fg, br) {
+    return "display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:600; padding:2px 8px; border-radius:20px; background:" + bg + "; color:" + fg + "; border:1px solid " + br + ";";
+  }
+  function areaColor(n) { var d = App.data; return d.areas[n.area] ? d.areas[n.area].color : "#566B7A"; }
+  function areaLabel(n) { var d = App.data; return d.areas[n.area] ? d.areas[n.area].label : n.area; }
+  function statusColor(n) { var d = App.data; return (d.statuses[n.status] && d.statuses[n.status].color) || "#8593A0"; }
+
+  // ============================================================
+  //  Render: HEADER
+  // ============================================================
+  function renderHeader() {
+    var d = App.data, st = App.state;
+    var views = [["jerarquica", "Jerárquica"], ["funcion", "Por función"], ["sede", "Por sede"], ["vacantes", "Vacantes"], ["criticos", "Críticos"]];
+    var tabs = views.map(function (v) {
+      var active = st.view === v[0];
+      var style = "height:30px; padding:0 13px; border:none; border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer; white-space:nowrap; transition:all .12s;" +
+        (active ? "background:" + ACCENT + "; color:#0A2A3A;" : "background:transparent; color:rgba(255,255,255,.78);");
+      return '<button data-act="view" data-view="' + v[0] + '" style="' + style + '">' + esc(v[1]) + "</button>";
+    }).join("");
+
+    var ix = idx();
+    var diag = computeDiag(d, ix);
+    var alertBadge = diag.alertCount ? '<span style="background:#E0524D; color:#fff; font-size:11px; font-weight:700; border-radius:20px; padding:1px 7px; font-family:\'IBM Plex Mono\',monospace;">' + diag.alertCount + "</span>" : "";
+
+    var editBtn = '<button data-act="toggleEdit" title="Activar modo edición" style="display:flex; align-items:center; gap:7px; height:36px; padding:0 14px; border-radius:9px; border:1px solid ' +
+      (st.editMode ? ACCENT : "rgba(255,255,255,.18)") + "; background:" + (st.editMode ? ACCENT : "rgba(255,255,255,.06)") + "; color:" + (st.editMode ? "#0A2A3A" : "#fff") +
+      '; font-size:13px; font-weight:600; cursor:pointer;">✎ ' + (st.editMode ? "Editando" : "Editar") + "</button>";
+
+    var orgBtn = st.editMode ? '<button data-act="showOrg" title="Organización, áreas y datos" style="height:36px; width:38px; border-radius:9px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#fff; font-size:15px; cursor:pointer;">⚙</button>' : "";
+
+    var exportDot = App.dirty ? '<span style="position:absolute; top:-3px; right:-3px; width:9px; height:9px; border-radius:50%; background:#E08A3C; border:1.5px solid #0F3E57;"></span>' : "";
+    var exportBtn = '<button data-act="export" title="Exportar org-data.js para commitear a GitHub" style="position:relative; height:36px; width:40px; border-radius:9px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#fff; font-size:15px; cursor:pointer;">⬇' + exportDot + "</button>";
+
+    $("ogHeader").innerHTML =
+      '<div style="height:62px; background:#0F3E57; color:#fff; display:flex; align-items:center; padding:0 16px; gap:14px; z-index:30; box-shadow:0 1px 0 rgba(255,255,255,.06), 0 8px 24px rgba(15,62,87,.18); flex-wrap:wrap;">' +
+        '<div style="display:flex; align-items:center; gap:11px; flex:0 0 auto;">' +
+          '<div style="width:34px; height:34px; border-radius:9px; background:linear-gradient(140deg, #65EAA4 0%, #2A9D8F 100%); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\'; font-weight:700; font-size:18px; color:#0A2A3A;">' + esc((d.meta.empresa || "G").trim().charAt(0).toUpperCase()) + "</div>" +
+          '<div style="line-height:1.1;">' +
+            '<div style="font-family:\'Space Grotesk\'; font-weight:600; font-size:15px; letter-spacing:.01em;">' + esc(d.meta.empresa) + "</div>" +
+            '<div style="font-size:10.5px; font-family:\'IBM Plex Mono\',monospace; color:#9FD9C9; letter-spacing:.03em;">' + esc(d.meta.subtitle) + "</div>" +
+          "</div>" +
+        "</div>" +
+        '<nav style="display:flex; align-items:center; gap:3px; background:rgba(255,255,255,.07); padding:3px; border-radius:11px;">' + tabs + "</nav>" +
+        '<div style="flex:1 1 auto;"></div>' +
+        editBtn + orgBtn +
+        '<button data-act="showDiag" style="display:flex; align-items:center; gap:7px; height:36px; padding:0 15px; border-radius:9px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#fff; font-size:13px; font-weight:600; cursor:pointer;"><span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#E08A3C;"></span>Diagnóstico' + alertBadge + "</button>" +
+        exportBtn +
+        '<button data-act="print" title="Imprimir / Exportar PDF" style="height:36px; width:38px; border-radius:9px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#fff; font-size:15px; cursor:pointer;">⎙</button>' +
+      "</div>";
+  }
+
+  // ============================================================
+  //  Render: BANNER cambios locales
+  // ============================================================
+  function renderDirty() {
+    var el = $("ogDirty");
+    if (!App.dirty) { el.className = "og-noprint"; el.innerHTML = ""; return; }
+    el.className = "og-noprint on";
+    el.innerHTML =
+      '<span>● Cambios locales sin exportar (guardados solo en este navegador).</span>' +
+      '<button class="btn btn-sm btn-dark" data-act="export">⬇ Exportar org-data.js</button>' +
+      '<button class="btn btn-sm btn-ghost" data-act="discardLocal" style="color:#7A5A22;">Descartar</button>';
+  }
+
+  // ============================================================
+  //  Render: TOOLBAR
+  // ============================================================
+  function renderToolbar() {
+    var d = App.data, st = App.state, ix = idx();
+    var all = d.nodes;
+    function uniq(arr) { return Array.from(new Set(arr.filter(Boolean))); }
+    var anyFilter = !!(st.filters.area || st.filters.sede || st.filters.estado || st.filters.seniority);
+
+    function selStyle(on) {
+      return "height:34px; border:1px solid " + (on ? "#BFE3D9" : "#DBE2E7") + "; background:" + (on ? "#ECF7F3" : "#F7F9FA") + "; color:" + (on ? "#1F6E62" : "#3C4B55") + "; border-radius:9px; padding:0 9px; font-size:12.5px; font-weight:500; cursor:pointer; outline:none;";
+    }
+    function selectHtml(act, placeholder, options, current) {
+      var opts = '<option value="">' + esc(placeholder) + "</option>";
+      options.forEach(function (o) { opts += '<option value="' + esc(o) + '"' + (o === current ? " selected" : "") + ">" + esc(o) + "</option>"; });
+      return '<select data-act="' + act + '" style="' + selStyle(!!current) + '">' + opts + "</select>";
+    }
+    var areaLabels = Object.keys(d.areas).map(function (k) { return d.areas[k].label; });
+    var curAreaLabel = st.filters.area && d.areas[st.filters.area] ? d.areas[st.filters.area].label : "";
+
+    var dottedStyle = "height:34px; padding:0 11px; border-radius:9px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid " +
+      (st.showDotted ? "#BFE3D9" : "#DBE2E7") + "; background:" + (st.showDotted ? "#ECF7F3" : "#fff") + "; color:" + (st.showDotted ? "#1F6E62" : "#6B7A85") + ";";
+
+    var editPill = st.editMode ? '<span style="height:34px; display:inline-flex; align-items:center; gap:6px; padding:0 11px; border-radius:9px; background:#ECF7F3; border:1px solid #BFE3D9; color:#1F6E62; font-size:11.5px; font-weight:700; font-family:\'IBM Plex Mono\',monospace;">✎ MODO EDICIÓN</span>' : "";
+
+    $("ogToolbar").innerHTML =
+      '<div style="min-height:50px; background:#fff; border-bottom:1px solid #E1E7EC; display:flex; align-items:center; flex-wrap:wrap; padding:8px 16px; gap:10px; z-index:20;">' +
+        '<div style="position:relative; flex:0 0 auto;">' +
+          '<span style="position:absolute; left:11px; top:50%; transform:translateY(-50%); color:#93A1AB; font-size:13px; pointer-events:none;">⌕</span>' +
+          '<input data-act="search" value="' + esc(st.search) + '" placeholder="Buscar persona, puesto o área…" style="height:34px; width:240px; max-width:60vw; border:1px solid #DBE2E7; border-radius:9px; padding:0 12px 0 30px; font-size:13px; color:#16242E; outline:none; background:#F7F9FA;" />' +
+        "</div>" +
+        '<div style="width:1px; height:24px; background:#E6EBEF;"></div>' +
+        selectHtml("filterArea", "Área: todas", areaLabels, curAreaLabel) +
+        selectHtml("filterSede", "Sede: todas", uniq(all.map(function (n) { return n.location; })), st.filters.sede) +
+        selectHtml("filterEstado", "Estado: todos", STATUS_ORDER.filter(function (s) { return d.statuses[s]; }), st.filters.estado) +
+        selectHtml("filterSeniority", "Seniority: todos", uniq(all.map(function (n) { return n.seniority; })), st.filters.seniority) +
+        (anyFilter ? '<button data-act="clearFilters" style="height:34px; padding:0 11px; border-radius:9px; border:1px solid #E3D6D5; background:#FBF1F0; color:#B5413C; font-size:12.5px; font-weight:600; cursor:pointer;">✕ Limpiar</button>' : "") +
+        editPill +
+        '<div style="flex:1 1 auto;"></div>' +
+        '<span id="ogMatch" style="font-size:11.5px; color:#7A8893; font-family:\'IBM Plex Mono\',monospace;"></span>' +
+        '<button data-act="toggleDotted" style="' + dottedStyle + '">⇢ Líneas punteadas</button>' +
+        '<div style="width:1px; height:24px; background:#E6EBEF;"></div>' +
+        '<div style="display:flex; align-items:center; gap:2px; background:#F2F5F7; border:1px solid #E3E9ED; border-radius:9px; padding:2px;">' +
+          '<button data-act="zoomOut" style="width:30px; height:28px; border:none; background:transparent; font-size:17px; color:#3C4B55; cursor:pointer; border-radius:7px;">−</button>' +
+          '<span id="ogZoomPct" style="min-width:44px; text-align:center; font-size:12px; font-family:\'IBM Plex Mono\',monospace; color:#3C4B55;">' + Math.round(st.zoom * 100) + "%</span>" +
+          '<button data-act="zoomIn" style="width:30px; height:28px; border:none; background:transparent; font-size:16px; color:#3C4B55; cursor:pointer; border-radius:7px;">+</button>' +
+        "</div>" +
+        '<button data-act="fit" style="height:34px; padding:0 12px; border-radius:9px; border:1px solid #DBE2E7; background:#fff; color:#3C4B55; font-size:12.5px; font-weight:600; cursor:pointer;">Encuadrar</button>' +
+      "</div>";
+    updateMatchInfo();
+  }
+
+  function updateMatchInfo() {
+    var el = $("ogMatch"); if (!el) return;
+    var st = App.state, d = App.data, ix = idx();
+    var term = st.search.trim().toLowerCase();
+    var anyFilter = !!(st.filters.area || st.filters.sede || st.filters.estado || st.filters.seniority);
+    if (!term && !anyFilter) { el.textContent = ""; return; }
+    var count = 0;
+    d.nodes.forEach(function (n) {
+      var hit = !term || ((n.title || "") + " " + (n.name || "") + " " + areaLabel(n)).toLowerCase().indexOf(term) >= 0;
+      if (hit && (!anyFilter || matchesFilters(n))) count++;
+    });
+    el.textContent = count + " coincidencia" + (count === 1 ? "" : "s");
+  }
+
+  // ============================================================
+  //  Render: CANVAS (árbol)
+  // ============================================================
+  function renderCanvas() {
+    var d = App.data;
+    if (!d) return;
+    $("ogEmpty").style.display = "none";
+
+    var st = App.state, ix = idx();
+    var vw = buildView(ix);
+    var pos = layoutTree(vw);
+    var ids = Object.keys(pos);
+
+    var maxX = 0, maxY = 0;
+    ids.forEach(function (id) { maxX = Math.max(maxX, pos[id].x + NODE_W); maxY = Math.max(maxY, pos[id].y + NODE_H); });
+    App._bounds = { w: maxX || NODE_W, h: maxY || NODE_H };
+
+    var term = st.search.trim().toLowerCase();
+    var anyFilter = !!(st.filters.area || st.filters.sede || st.filters.estado || st.filters.seniority);
+    function isHit(n) { return term && ((n.title || "") + " " + (n.name || "") + " " + areaLabel(n)).toLowerCase().indexOf(term) >= 0; }
+
+    // ----- edges -----
+    var edges = [], ec = "#C3CCD2";
+    function drawEdge(pid, cid, color, dash, width) {
+      var p = pos[pid], c = pos[cid]; if (!p || !c) return;
+      var x1 = p.x + NODE_W, y1 = p.y + NODE_H / 2, x2 = c.x, y2 = c.y + NODE_H / 2, mx = (x1 + x2) / 2;
+      edges.push({ d: "M" + x1 + "," + y1 + " C" + mx + "," + y1 + " " + mx + "," + y2 + " " + x2 + "," + y2, color: color, dash: dash || "0", width: width || 1.7 });
+    }
+    Object.keys(vw.ch).forEach(function (pid) {
+      if (st.collapsed[pid]) return;
+      (vw.ch[pid] || []).forEach(function (cid) { if (pos[cid]) drawEdge(pid, cid, ec); });
+    });
+    if (st.showDotted && st.view === "jerarquica") {
+      d.nodes.forEach(function (n) {
+        if (!pos[n.id]) return;
+        (n.dotted || []).forEach(function (tid) {
+          if (!pos[tid]) return;
+          var a = pos[n.id], b = pos[tid];
+          var x1 = a.x, y1 = a.y + NODE_H / 2, x2 = b.x + NODE_W, y2 = b.y + NODE_H / 2, mx = (x1 + x2) / 2;
+          edges.push({ d: "M" + x1 + "," + y1 + " C" + mx + "," + y1 + " " + mx + "," + y2 + " " + x2 + "," + y2, color: "#9AA7B0", dash: "5 6", width: 1.4 });
+        });
+      });
+    }
+    var edgesHtml = edges.map(function (e) {
+      return '<path d="' + e.d + '" fill="none" stroke="' + e.color + '" stroke-width="' + e.width + '" stroke-dasharray="' + e.dash + '" stroke-linecap="round"></path>';
+    }).join("");
+
+    // ----- nodes -----
+    var nodesHtml = ids.map(function (id) {
+      var p = pos[id], isVirtual = !!vw.virt[id], hasKids = (vw.ch[id] || []).length > 0;
+      var caretStyle = "position:absolute; right:-13px; top:50%; transform:translateY(-50%); width:24px; height:24px; border-radius:50%; background:#fff; border:1px solid #D5DDE2; display:flex; align-items:center; justify-content:center; font-size:12px; color:" + BRAND + "; box-shadow:0 1px 3px rgba(0,0,0,.14); z-index:4; cursor:pointer;";
+      var caret = hasKids ? '<div data-caret="' + esc(id) + '" style="' + caretStyle + '">' + (st.collapsed[id] ? "+" : "–") + "</div>" : "";
+
+      if (isVirtual) {
+        var v = vw.virt[id];
+        var bg = v.kind === "root" ? BRAND : (v.color || "#566B7A");
+        return '<div data-node="' + esc(id) + '" data-virtual="1" style="position:absolute; left:' + p.x + "px; top:" + p.y + "px; width:" + NODE_W + "px; min-height:" + NODE_H + "px; display:flex; align-items:center; justify-content:center; padding:10px 16px; border-radius:13px; background:" + bg + "; box-shadow:0 6px 18px rgba(15,62,87,.18); cursor:pointer;\">" +
+          caret + '<div style="font-family:\'Space Grotesk\'; font-weight:600; font-size:14px; color:#fff; text-align:center; width:100%;">' + esc(v.title) + "</div></div>";
+      }
+
+      var n = ix.byId[id], dr = ix.children[id].length;
+      var ac = areaColor(n), al = areaLabel(n), sc = statusColor(n);
+      var alerts = alertsFor(n, dr).map(function (a) {
+        return '<span title="' + esc(a.title) + '" style="display:inline-flex; align-items:center; justify-content:center; width:17px; height:17px; border-radius:5px; font-size:10px; background:' + a.color + "1F; color:" + a.color + ';">' + a.icon + "</span>";
+      }).join("");
+      var hit = isHit(n);
+      var dim = (term && !hit) || (anyFilter && !matchesFilters(n));
+      var sel = st.selectedId === id, vac = isVac(n);
+      var ring = sel ? "border:2px solid " + BRAND + "; box-shadow:0 0 0 4px " + ACCENT + "66, 0 8px 20px rgba(15,62,87,.14);"
+        : (hit ? "border:2px solid " + ACCENT + "; box-shadow:0 6px 16px rgba(15,62,87,.1);"
+          : "border:1px solid #E3E8EC; box-shadow:0 1px 2px rgba(15,62,87,.05), 0 5px 14px rgba(15,62,87,.05);");
+      var areaTag = '<span style="font-family:\'IBM Plex Mono\',monospace; font-size:9px; letter-spacing:.04em; text-transform:uppercase; font-weight:600; color:' + ac + "; background:" + ac + "16; border-radius:5px; padding:2px 6px;\">" + esc(al) + "</span>";
+      var nameStyle = "font-size:12px; font-weight:" + (vac ? "600" : "500") + "; color:" + (vac ? "#C0463F" : "#5A6B75") + ";";
+
+      return '<div data-node="' + esc(id) + '" style="position:absolute; left:' + p.x + "px; top:" + p.y + "px; width:" + NODE_W + "px; min-height:" + NODE_H + "px; background:#fff; border-left:4px solid " + ac + "; border-radius:12px; padding:10px 13px; display:flex; flex-direction:column; gap:1px; cursor:pointer; opacity:" + (dim ? "0.28" : "1") + "; filter:" + (dim ? "saturate(.4)" : "none") + "; transition:opacity .15s, box-shadow .15s; " + ring + '">' +
+        caret +
+        '<div style="display:flex; align-items:center; gap:7px; width:100%;">' + areaTag + '<div style="flex:1;"></div>' + alerts + "</div>" +
+        '<div style="font-family:\'Space Grotesk\'; font-weight:600; font-size:13.5px; line-height:1.22; color:#15303D; margin-top:1px;">' + esc(n.title) + "</div>" +
+        '<div style="' + nameStyle + '">' + esc(n.name) + "</div>" +
+        '<div style="display:flex; align-items:center; gap:6px; margin-top:3px;">' +
+          '<span style="' + chipStyle(sc + "18", "#3C4B55", sc + "33") + '"><span style="width:7px; height:7px; border-radius:50%; background:' + sc + ';"></span>' + esc(n.status) + "</span>" +
+          '<span style="font-size:10.5px; color:#8593A0; font-family:\'IBM Plex Mono\',monospace;">' + esc(n.seniority) + "</span>" +
+        "</div>" +
+      "</div>";
+    }).join("");
+
+    var layer = $("ogLayer");
+    layer.style.width = maxX + "px"; layer.style.height = maxY + "px";
+    layer.innerHTML = '<svg width="' + maxX + '" height="' + maxY + '" style="position:absolute; left:0; top:0; overflow:visible; pointer-events:none;">' + edgesHtml + "</svg>" + nodesHtml;
+
+    renderMetrics(d, ix);
+    renderLegend(d);
+    renderAddBtn();
+    updateMatchInfo();
+    applyTransform();
+  }
+
+  function renderMetrics(d, ix) {
+    var m = metricsOf(d, ix);
+    var chips = [
+      { label: "Headcount", value: m.headcount, color: BRAND },
+      { label: "Roles", value: m.totalRoles, color: BRAND },
+      { label: "Capas", value: m.capas, color: m.capas > 5 ? "#E0524D" : BRAND },
+      { label: "Span prom.", value: m.avgSpan.toFixed(1), color: BRAND },
+      { label: "Managers", value: m.managers.length, color: BRAND },
+      { label: "Vacantes", value: m.vac.length + " · " + m.pctVac + "%", color: m.pctVac > 15 ? "#E0524D" : "#2E9E6B" }
+    ];
+    $("ogMetrics").innerHTML = chips.map(function (c) {
+      return '<div style="background:rgba(255,255,255,.92); backdrop-filter:blur(6px); border:1px solid #E1E7EC; border-radius:11px; padding:7px 12px; box-shadow:0 2px 8px rgba(15,62,87,.07);">' +
+        '<div style="font-size:9.5px; text-transform:uppercase; letter-spacing:.07em; color:#8593A0; font-family:\'IBM Plex Mono\',monospace;">' + esc(c.label) + "</div>" +
+        '<div style="font-family:\'Space Grotesk\'; font-weight:600; font-size:17px; line-height:1.1; color:' + c.color + ';">' + esc(c.value) + "</div></div>";
+    }).join("");
+  }
+
+  function renderLegend(d) {
+    var items = STATUS_ORDER.filter(function (s) { return d.statuses[s]; }).map(function (k) {
+      return '<div style="display:flex; align-items:center; gap:6px; font-size:11.5px; color:#3C4B55;"><span style="width:9px; height:9px; border-radius:50%; background:' + d.statuses[k].color + ';"></span>' + esc(k) + "</div>";
+    }).join("");
+    $("ogLegend").innerHTML =
+      '<div style="background:rgba(255,255,255,.94); border:1px solid #E1E7EC; border-radius:12px; padding:11px 13px; box-shadow:0 4px 14px rgba(15,62,87,.09); max-width:230px;">' +
+        '<div style="font-size:9.5px; text-transform:uppercase; letter-spacing:.08em; color:#8593A0; font-family:\'IBM Plex Mono\',monospace; margin-bottom:7px;">Estado</div>' +
+        '<div style="display:flex; flex-wrap:wrap; gap:5px 12px;">' + items + "</div></div>";
+  }
+
+  function renderAddBtn() {
+    $("ogAddBtn").innerHTML = App.state.editMode
+      ? '<button class="btn btn-dark" data-act="addRole" style="height:42px; padding:0 18px; border-radius:11px; box-shadow:0 8px 22px rgba(15,62,87,.28); font-size:13.5px;">＋ Agregar rol</button>'
+      : "";
+  }
+
+  // ============================================================
+  //  Render: PANEL (ficha) — vista y edición
+  // ============================================================
+  function renderPanel() {
+    var st = App.state, host = $("ogPanel");
+    if (!st.selectedId && !st.draftIsNew) { host.innerHTML = ""; return; }
+    if (st.panelMode === "edit" && st.draft) { host.innerHTML = panelEditHtml(); return; }
+
+    var d = App.data, ix = idx(), n = ix.byId[st.selectedId];
+    if (!n) { host.innerHTML = ""; return; }
+    var dr = ix.children[n.id];
+    var ac = areaColor(n), sc = statusColor(n);
+    var alertsRaw = alertsFor(n, dr.length);
+    var succName = n.successor && ix.byId[n.successor] ? ix.byId[n.successor].title : null;
+    var succText = succName ? "Sucesor: " + succName : (n.critical ? "⚠ Rol crítico SIN sucesor identificado" : "Sin sucesor identificado");
+    var succColor = succName ? "#1F6E62" : (n.critical ? "#B5413C" : "#5A6B75");
+    var succBg = succName ? "#EEF6F4" : (n.critical ? "#FBF1F0" : "#F6F8F9");
+    var succBorder = succName ? "#D6EAE5" : (n.critical ? "#F0D6D4" : "#E7EDF0");
+    var sectionLabel = "font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#93A1AB; font-family:'IBM Plex Mono',monospace; margin-bottom:7px;";
+
+    var facts = [
+      { label: "Área", value: areaLabel(n) }, { label: "Autoridad / delegación", value: n.authority },
+      { label: "Ubicación", value: n.location }, { label: "Modalidad", value: n.modality },
+      { label: "Contratación", value: n.contract }, { label: "Headcount", value: n.headcount },
+      { label: "Última revisión", value: n.lastReview }, { label: "Próxima revisión", value: n.nextReview }
+    ];
+    var factsHtml = facts.map(function (f) {
+      return '<div><div style="font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:#93A1AB; font-family:\'IBM Plex Mono\',monospace;">' + esc(f.label) + "</div>" +
+        '<div style="font-size:13px; color:#26333C; font-weight:500; margin-top:2px;">' + esc(f.value) + "</div></div>";
+    }).join("");
+
+    var editBar = st.editMode
+      ? '<div style="display:flex; gap:8px; margin-top:13px;"><button class="btn btn-sm btn-primary" data-act="panelEdit">✎ Editar campos</button>' +
+        '<button class="btn btn-sm" data-act="markVacant" title="Marca el puesto como Vacante">○ Marcar vacante</button>' +
+        '<button class="btn btn-sm btn-danger" data-act="deleteNode">🗑 Eliminar rol</button></div>'
+      : "";
+
+    host.innerHTML =
+      '<div class="og-noprint" data-act="closePanel" style="position:fixed; inset:0; background:rgba(15,36,46,.22); z-index:40; animation:ogFade .18s;"></div>' +
+      '<aside class="og-noprint" style="position:fixed; top:0; right:0; height:100vh; width:420px; max-width:92vw; background:#fff; z-index:41; box-shadow:-12px 0 40px rgba(15,62,87,.18); display:flex; flex-direction:column; animation:ogSlideIn .22s cubic-bezier(.2,.8,.2,1);">' +
+        '<div style="flex:0 0 auto; padding:18px 22px; border-bottom:1px solid #EDF1F3; background:' + ac + ';">' +
+          '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">' +
+            "<div>" +
+              '<span style="font-family:\'IBM Plex Mono\',monospace; font-size:10px; letter-spacing:.05em; text-transform:uppercase; font-weight:600; color:#fff; background:rgba(255,255,255,.2); border-radius:6px; padding:3px 8px;">' + esc(areaLabel(n)) + "</span>" +
+              '<div style="font-family:\'Space Grotesk\'; font-weight:700; font-size:21px; line-height:1.18; color:#fff; margin-top:9px;">' + esc(n.title) + "</div>" +
+              '<div style="font-size:14px; color:rgba(255,255,255,.86); margin-top:2px;">' + esc(n.name) + "</div>" +
+            "</div>" +
+            '<button data-act="closePanel" style="flex:0 0 auto; width:32px; height:32px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.12); color:#fff; font-size:16px; cursor:pointer;">✕</button>' +
+          "</div>" +
+          '<div style="display:flex; gap:6px; margin-top:13px; flex-wrap:wrap;">' +
+            '<span style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:4px 11px; border-radius:20px; background:rgba(255,255,255,.16); color:#fff;"><span style="width:8px; height:8px; border-radius:50%; background:' + sc + '; box-shadow:0 0 0 2px rgba(255,255,255,.4);"></span>' + esc(n.status) + "</span>" +
+            '<span style="font-size:11.5px; color:rgba(255,255,255,.9); background:rgba(255,255,255,.14); border-radius:20px; padding:4px 10px; font-weight:500;">' + esc(n.seniority) + " · " + esc(n.band) + "</span>" +
+          "</div>" + editBar +
+        "</div>" +
+        '<div style="flex:1 1 auto; overflow-y:auto; padding:6px 22px 28px;">' +
+          (alertsRaw.length ? '<div style="margin-top:16px; background:#FCF6EC; border:1px solid #F0E2C4; border-radius:11px; padding:11px 13px;"><div style="font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:#A9762A; font-family:\'IBM Plex Mono\',monospace; margin-bottom:6px;">⚠ Alertas</div>' +
+            alertsRaw.map(function (a) { return '<div style="font-size:12.5px; color:#7A5A22; padding:2px 0;">• ' + esc(a.title) + "</div>"; }).join("") + "</div>" : "") +
+          '<div style="margin-top:18px;"><div style="' + sectionLabel + '">Misión del puesto</div><div style="font-size:13.5px; line-height:1.5; color:#36454F;">' + esc(n.mission) + "</div></div>" +
+          '<div style="margin-top:18px;"><div style="' + sectionLabel + '">Responsabilidades clave</div>' +
+            (n.responsibilities || []).map(function (r) { return '<div style="font-size:13px; line-height:1.45; color:#36454F; display:flex; gap:8px; padding:2px 0;"><span style="color:#2A9D8F; flex:0 0 auto;">—</span><span>' + esc(r) + "</span></div>"; }).join("") + "</div>" +
+          '<div style="margin-top:18px;"><div style="' + sectionLabel + '">KPIs / OKRs principales</div><div style="display:flex; flex-wrap:wrap; gap:6px;">' +
+            (n.kpis || []).map(function (k) { return '<span style="font-size:12px; background:#EEF6F4; color:#1F6E62; border:1px solid #D6EAE5; border-radius:7px; padding:4px 9px;">' + esc(k) + "</span>"; }).join("") + "</div></div>" +
+          '<div style="margin-top:18px; display:grid; grid-template-columns:1fr 1fr; gap:10px 14px;">' + factsHtml + "</div>" +
+          '<div style="margin-top:20px; background:#F6F8F9; border:1px solid #E7EDF0; border-radius:12px; padding:14px;">' +
+            '<div style="' + sectionLabel + '">Línea de reporte</div>' +
+            '<div style="font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:#93A1AB; font-family:\'IBM Plex Mono\',monospace;">Reporta a</div>' +
+            '<div style="font-size:13.5px; color:#26333C; font-weight:500; margin:2px 0 10px;">' + esc(n.reportsTo && ix.byId[n.reportsTo] ? ix.byId[n.reportsTo].title : "— (reporta al máximo nivel)") + "</div>" +
+            '<div style="font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:#93A1AB; font-family:\'IBM Plex Mono\',monospace;">Reportes directos (' + dr.length + ")</div>" +
+            '<div style="font-size:13px; color:#26333C; margin-top:2px;">' + esc(dr.length ? dr.map(function (c) { return ix.byId[c].title; }).join(", ") : "— sin reportes directos") + "</div>" +
+            ((n.dotted || []).length ? '<div style="font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:#93A1AB; font-family:\'IBM Plex Mono\',monospace; margin-top:10px;">Líneas punteadas (matricial)</div><div style="font-size:13px; color:#26333C; margin-top:2px;">' + esc((n.dotted || []).map(function (t) { return ix.byId[t] ? ix.byId[t].title : t; }).join(", ")) + "</div>" : "") +
+          "</div>" +
+          '<div style="margin-top:14px; background:' + succBg + "; border:1px solid " + succBorder + '; border-radius:12px; padding:14px;">' +
+            '<div style="' + sectionLabel + '">Plan de sucesión</div>' +
+            '<div style="font-size:13.5px; color:' + succColor + '; font-weight:600;">' + esc(succText) + "</div>" +
+            '<div style="font-size:12px; color:#5A6B75; margin-top:7px;"><b style="color:#36454F;">Próximo paso de carrera:</b> ' + esc(n.careerNext) + "</div>" +
+            '<div style="font-size:12px; color:#5A6B75; margin-top:3px;"><b style="color:#36454F;">Gap de competencias:</b> ' + esc(n.skillsGap) + "</div>" +
+          "</div>" +
+        "</div>" +
+      "</aside>";
+  }
+
+  function panelEditHtml() {
+    var d = App.data, st = App.state, n = st.draft, isNew = st.draftIsNew;
+    var areaOpts = Object.keys(d.areas).map(function (k) { return '<option value="' + esc(k) + '"' + (k === n.area ? " selected" : "") + ">" + esc(d.areas[k].label) + "</option>"; }).join("");
+    var statusOpts = STATUS_ORDER.filter(function (s) { return d.statuses[s]; }).map(function (s) { return '<option value="' + esc(s) + '"' + (s === n.status ? " selected" : "") + ">" + esc(s) + "</option>"; }).join("");
+    var others = d.nodes.filter(function (x) { return x.id !== n.id; });
+    function nodeOpts(sel, includeEmpty, emptyLabel) {
+      var o = includeEmpty ? '<option value=""' + (!sel ? " selected" : "") + ">" + esc(emptyLabel) + "</option>" : "";
+      others.forEach(function (x) { o += '<option value="' + esc(x.id) + '"' + (x.id === sel ? " selected" : "") + ">" + esc(x.title) + (x.name && x.name !== "(a completar)" ? " — " + esc(x.name) : "") + "</option>"; });
+      return o;
+    }
+    function listEditor(field, label) {
+      var rows = (n[field] || []).map(function (v, i) {
+        return '<div class="f-list-row"><input class="f-input" data-list="' + field + '" data-idx="' + i + '" value="' + esc(v) + '"><button class="f-iconbtn" data-act="delListItem" data-list="' + field + '" data-idx="' + i + '" title="Quitar">×</button></div>';
+      }).join("");
+      return '<div class="f-section"><label class="f-label">' + esc(label) + "</label>" + rows +
+        '<button class="btn btn-sm" data-act="addListItem" data-list="' + field + '" style="margin-top:2px;">＋ Agregar</button></div>';
+    }
+
+    return '<div class="og-noprint" data-act="closePanel" style="position:fixed; inset:0; background:rgba(15,36,46,.28); z-index:40; animation:ogFade .18s;"></div>' +
+      '<aside class="og-noprint" style="position:fixed; top:0; right:0; height:100vh; width:460px; max-width:96vw; background:#fff; z-index:41; box-shadow:-12px 0 40px rgba(15,62,87,.2); display:flex; flex-direction:column; animation:ogSlideIn .22s cubic-bezier(.2,.8,.2,1);">' +
+        '<div style="flex:0 0 auto; padding:16px 22px; background:#0F3E57; color:#fff; display:flex; justify-content:space-between; align-items:center;">' +
+          '<div><div style="font-family:\'Space Grotesk\'; font-weight:700; font-size:17px;">' + (isNew ? "Nuevo rol" : "Editar rol") + "</div>" +
+          '<div style="font-size:11px; color:#9FD9C9; font-family:\'IBM Plex Mono\',monospace; margin-top:2px;">' + (isNew ? "Completá los campos y guardá" : "Modificá los textos y guardá") + "</div></div>" +
+          '<button data-act="closePanel" style="width:32px; height:32px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.12); color:#fff; font-size:16px; cursor:pointer;">✕</button>' +
+        "</div>" +
+        '<div style="flex:1 1 auto; overflow-y:auto; padding:8px 22px 18px;">' +
+          '<div class="f-section"><label class="f-label">Puesto / título *</label><input class="f-input" data-field="title" value="' + esc(n.title) + '" placeholder="Ej: Engineering Manager"></div>' +
+          '<div class="f-section"><label class="f-label">Colaborador (nombre)</label><input class="f-input" data-field="name" value="' + esc(n.name) + '" placeholder="Nombre y apellido — o (a completar) / VACANTE"></div>' +
+          '<div class="f-grid2 f-section">' +
+            '<div><label class="f-label">Área</label><select class="f-select" data-field="area">' + areaOpts + "</select></div>" +
+            '<div><label class="f-label">Estado</label><select class="f-select" data-field="status">' + statusOpts + "</select></div>" +
+          "</div>" +
+          '<div class="f-grid2 f-section">' +
+            '<div><label class="f-label">Seniority</label><input class="f-input" data-field="seniority" value="' + esc(n.seniority) + '"></div>' +
+            '<div><label class="f-label">Banda / grado</label><input class="f-input" data-field="band" value="' + esc(n.band) + '"></div>' +
+          "</div>" +
+          '<div class="f-section"><label class="f-label">Reporta a</label><select class="f-select" data-field="reportsTo">' + nodeOpts(n.reportsTo, true, "— (nivel máximo / raíz)") + "</select></div>" +
+          '<div class="f-grid2 f-section">' +
+            '<div><label class="f-label">Sucesor</label><select class="f-select" data-field="successor">' + nodeOpts(n.successor, true, "— (sin sucesor)") + "</select></div>" +
+            '<div style="display:flex; align-items:flex-end;"><label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#36454F; cursor:pointer; padding-bottom:8px;"><input type="checkbox" data-field="critical" ' + (n.critical ? "checked" : "") + ' style="width:16px; height:16px;"> Rol crítico</label></div>' +
+          "</div>" +
+          '<div class="f-section"><label class="f-label">Misión del puesto</label><textarea class="f-textarea" data-field="mission" placeholder="Misión del puesto en 1–2 frases">' + esc(n.mission) + "</textarea></div>" +
+          listEditor("responsibilities", "Responsabilidades clave") +
+          listEditor("kpis", "KPIs / OKRs principales") +
+          '<div class="f-grid2 f-section">' +
+            '<div><label class="f-label">Ubicación / sede</label><input class="f-input" data-field="location" value="' + esc(n.location) + '"></div>' +
+            '<div><label class="f-label">Modalidad</label><input class="f-input" data-field="modality" value="' + esc(n.modality) + '" placeholder="Presencial / Híbrido / Remoto"></div>' +
+            '<div><label class="f-label">Contratación</label><input class="f-input" data-field="contract" value="' + esc(n.contract) + '" placeholder="Full-time / Part-time / Externo"></div>' +
+            '<div><label class="f-label">Headcount</label><input class="f-input" type="number" min="1" data-field="headcount" value="' + esc(n.headcount) + '"></div>' +
+            '<div><label class="f-label">Última revisión</label><input class="f-input" data-field="lastReview" value="' + esc(n.lastReview) + '" placeholder="AAAA-MM-DD o —"></div>' +
+            '<div><label class="f-label">Próxima revisión</label><input class="f-input" data-field="nextReview" value="' + esc(n.nextReview) + '" placeholder="AAAA-MM-DD o —"></div>' +
+            '<div><label class="f-label">Autoridad / delegación</label><input class="f-input" data-field="authority" value="' + esc(n.authority) + '"></div>' +
+            '<div><label class="f-label">Próximo paso de carrera</label><input class="f-input" data-field="careerNext" value="' + esc(n.careerNext) + '"></div>' +
+          "</div>" +
+          '<div class="f-section"><label class="f-label">Gap de competencias</label><input class="f-input" data-field="skillsGap" value="' + esc(n.skillsGap) + '"></div>' +
+          '<div class="f-section"><label class="f-label">Líneas punteadas (reportes matriciales)</label>' +
+            '<select class="f-select" data-dotted multiple size="4">' + others.map(function (x) { return '<option value="' + esc(x.id) + '"' + ((n.dotted || []).indexOf(x.id) >= 0 ? " selected" : "") + ">" + esc(x.title) + "</option>"; }).join("") + "</select>" +
+            '<div class="f-hint">Ctrl/Cmd + clic para seleccionar varios.</div></div>' +
+        "</div>" +
+        '<div style="flex:0 0 auto; padding:14px 22px; border-top:1px solid #EDF1F3; display:flex; gap:10px; background:#fff;">' +
+          '<button class="btn btn-primary" data-act="saveNode" style="flex:1; height:40px; justify-content:center; font-size:14px;">' + (isNew ? "Crear rol" : "Guardar cambios") + "</button>" +
+          (isNew ? "" : '<button class="btn btn-danger" data-act="deleteNode" style="height:40px;">🗑 Eliminar</button>') +
+          '<button class="btn btn-ghost" data-act="closePanel" style="height:40px;">Cancelar</button>' +
+        "</div>" +
+      "</aside>";
+  }
+
+  // ============================================================
+  //  Render: DIAGNÓSTICO
+  // ============================================================
+  function computeDiag(d, ix) {
+    var m = metricsOf(d, ix), all = m.all;
+    var critNoSucc = all.filter(function (n) { return n.critical && !n.successor; });
+    var vacCrit = all.filter(function (n) { return n.critical && isVac(n); });
+    var highSpan = m.managers.filter(function (mm) { return ix.children[mm.id].length > 7; }).map(function (mm) { return { n: mm, c: ix.children[mm.id].length }; });
+    var solo = m.managers.filter(function (mm) { return ix.children[mm.id].length === 1; });
+    var overdueList = all.filter(overdue);
+
+    var items = { Alta: [], Media: [], Baja: [] };
+    critNoSucc.forEach(function (n) { items.Alta.push({ titulo: "Rol crítico sin sucesor: " + n.title, detalle: "Identificado como crítico para la operación pero no tiene sucesor ni backup definido.", riesgo: "Punto único de falla: una salida deja el área sin liderazgo y frena decisiones.", reco: "Nombrar y desarrollar un sucesor; documentar conocimiento crítico en 90 días." }); });
+    vacCrit.forEach(function (n) { items.Alta.push({ titulo: "Rol crítico vacante: " + n.title, detalle: "Posición crítica actualmente en estado «" + n.status + "».", riesgo: "Capacidad clave descubierta mientras dure la búsqueda.", reco: "Priorizar la cobertura; designar un interino formal mientras se cubre." }); });
+    highSpan.forEach(function (h) { items.Alta.push({ titulo: "Span de control alto: " + h.n.title + " (" + h.c + " reportes directos)", detalle: "Supera el rango sano de 5–7 reportes directos.", riesgo: "Sobrecarga del manager, supervisión superficial y cuellos de botella en decisiones.", reco: "Introducir una capa intermedia o redistribuir reportes a líderes de equipo." }); });
+    solo.forEach(function (mm) { items.Media.push({ titulo: "Manager con un solo reporte: " + mm.title, detalle: mm.title + " gestiona un único reporte directo.", riesgo: "Capa jerárquica innecesaria; sobrecosto y dilución de accountability.", reco: "Evaluar fusionar el rol, aplanar la línea o ampliar el equipo." }); });
+    overdueList.forEach(function (n) { items.Media.push({ titulo: "Revisión vencida: " + n.title, detalle: "Próxima revisión pautada para " + n.nextReview + " (ya vencida).", riesgo: "Feedback y desarrollo desactualizados; desalineación de expectativas.", reco: "Reagendar la revisión de desempeño/rol esta semana." }); });
+    if (m.pctVac > 15) items.Media.push({ titulo: "Nivel de vacantes elevado: " + m.pctVac + "%", detalle: m.vac.length + " de " + m.totalRoles + " roles sin cubrir.", riesgo: "Presión sobre los equipos actuales y riesgo de burnout.", reco: "Revisar pipeline de selección y prioridades de contratación por trimestre." });
+    var borderline = m.managers.find ? m.managers.find(function (mm) { return ix.children[mm.id].length === 7; }) : null;
+    if (borderline) items.Baja.push({ titulo: "Span en el límite: " + borderline.title + " (7 reportes)", detalle: "En el borde superior del rango recomendado.", riesgo: "Margen escaso ante futuras incorporaciones.", reco: "Monitorear; preparar una capa de leads antes de seguir creciendo." });
+
+    var sevColor = { Alta: "#E0524D", Media: "#E08A3C", Baja: "#C9A227" };
+    var groups = ["Alta", "Media", "Baja"].filter(function (s) { return items[s].length; }).map(function (s) { return { sev: s, color: sevColor[s], count: items[s].length, items: items[s] }; });
+    var alertCount = items.Alta.length + items.Media.length;
+    var execSummary = d.meta.empresa + " opera con " + m.totalRoles + " roles (" + m.headcount + " personas) en " + m.capas + " capas jerárquicas y un span de control promedio de " + m.avgSpan.toFixed(1) + ". Se detectan " + critNoSucc.length + " rol(es) crítico(s) sin sucesor —el hallazgo más grave—, " + highSpan.length + " manager(s) con span excesivo y " + overdueList.length + " revisión(es) vencida(s). El " + m.pctVac + "% de los roles está vacante.";
+    return { groups: groups, alertCount: alertCount, execSummary: execSummary, m: m };
+  }
+
+  function renderDiag() {
+    var host = $("ogDiag");
+    if (!App.state.showDiag) { host.innerHTML = ""; return; }
+    var d = App.data, ix = idx(), diag = computeDiag(d, ix), m = diag.m;
+    var metrics = [
+      { label: "Headcount", value: m.headcount, color: BRAND }, { label: "Roles definidos", value: m.totalRoles, color: BRAND },
+      { label: "Capas jerárq.", value: m.capas, color: m.capas > 5 ? "#E0524D" : BRAND }, { label: "Span promedio", value: m.avgSpan.toFixed(1), color: BRAND },
+      { label: "Span máximo", value: m.maxSpan, color: m.maxSpan > 7 ? "#E0524D" : BRAND }, { label: "% Vacantes", value: m.pctVac + "%", color: m.pctVac > 15 ? "#E0524D" : "#2E9E6B" }
+    ];
+    var metricsHtml = metrics.map(function (x) {
+      return '<div style="background:#fff; border:1px solid #E7EDF0; border-radius:11px; padding:10px 12px;"><div style="font-size:9px; text-transform:uppercase; letter-spacing:.06em; color:#8593A0; font-family:\'IBM Plex Mono\',monospace;">' + esc(x.label) + '</div><div style="font-family:\'Space Grotesk\'; font-weight:600; font-size:16px; color:' + x.color + '; margin-top:2px;">' + esc(x.value) + "</div></div>";
+    }).join("");
+    var groupsHtml = diag.groups.map(function (g) {
+      return '<div style="margin-top:20px;"><div style="display:flex; align-items:center; gap:8px; margin-bottom:9px;"><span style="width:10px; height:10px; border-radius:3px; background:' + g.color + ';"></span><span style="font-family:\'Space Grotesk\'; font-weight:600; font-size:14px; color:#1C2A33;">Severidad ' + g.sev + '</span><span style="font-size:11px; color:#8593A0; font-family:\'IBM Plex Mono\',monospace;">(' + g.count + ")</span></div>" +
+        g.items.map(function (it) {
+          return '<div style="background:#fff; border:1px solid #E7EDF0; border-left:3px solid ' + g.color + '; border-radius:10px; padding:12px 14px; margin-bottom:8px;"><div style="font-weight:600; font-size:13.5px; color:#1C2A33;">' + esc(it.titulo) + '</div><div style="font-size:12.5px; color:#4A5963; line-height:1.45; margin-top:4px;">' + esc(it.detalle) + '</div><div style="font-size:12px; color:#B5413C; margin-top:6px;"><b>Riesgo:</b> ' + esc(it.riesgo) + '</div><div style="font-size:12px; color:#1F6E62; margin-top:2px;"><b>Recomendación:</b> ' + esc(it.reco) + "</div></div>";
+        }).join("") + "</div>";
+    }).join("");
+
+    host.innerHTML =
+      '<div class="og-noprint" data-act="closeDiag" style="position:fixed; inset:0; background:rgba(15,36,46,.3); z-index:50; animation:ogFade .18s;"></div>' +
+      '<aside class="og-noprint" style="position:fixed; top:0; right:0; height:100vh; width:540px; max-width:96vw; background:#F7F9FA; z-index:51; box-shadow:-12px 0 40px rgba(15,62,87,.2); display:flex; flex-direction:column; animation:ogSlideIn .22s cubic-bezier(.2,.8,.2,1);">' +
+        '<div style="flex:0 0 auto; padding:18px 22px; background:#0F3E57; color:#fff; display:flex; justify-content:space-between; align-items:center;"><div><div style="font-family:\'Space Grotesk\'; font-weight:700; font-size:18px;">Diagnóstico organizacional</div><div style="font-size:11.5px; color:#9FD9C9; font-family:\'IBM Plex Mono\',monospace; margin-top:2px;">Honestidad brutal — sin maquillaje</div></div><button data-act="closeDiag" style="width:32px; height:32px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.12); color:#fff; font-size:16px; cursor:pointer;">✕</button></div>' +
+        '<div style="flex:1 1 auto; overflow-y:auto; padding:18px 22px 30px;">' +
+          '<div style="background:#fff; border:1px solid #E7EDF0; border-radius:12px; padding:16px;"><div style="font-size:13.5px; line-height:1.55; color:#2C3A43;">' + esc(diag.execSummary) + "</div></div>" +
+          '<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:14px;">' + metricsHtml + "</div>" +
+          (groupsHtml || '<div style="margin-top:20px; background:#EEF6F4; border:1px solid #D6EAE5; border-radius:10px; padding:14px; font-size:13px; color:#1F6E62;">✓ Sin hallazgos relevantes con los datos actuales.</div>') +
+        "</div>" +
+      "</aside>";
+  }
+
+  // ============================================================
+  //  Render: ORGANIZACIÓN / ÁREAS / DATOS
+  // ============================================================
+  function renderOrg() {
+    var host = $("ogOrg");
+    if (!App.state.showOrg) { host.innerHTML = ""; return; }
+    var d = App.data, ix = idx();
+    var counts = {}; d.nodes.forEach(function (n) { counts[n.area] = (counts[n.area] || 0) + 1; });
+
+    var areaRows = Object.keys(d.areas).map(function (k) {
+      var used = counts[k] || 0;
+      return '<div style="display:flex; align-items:center; gap:8px; margin-bottom:7px;">' +
+        '<input type="color" data-act="areaColor" data-key="' + esc(k) + '" value="' + esc(d.areas[k].color) + '" style="width:34px; height:34px; border:1px solid #DBE2E7; border-radius:8px; padding:2px; background:#fff; cursor:pointer;">' +
+        '<input class="f-input" data-act="areaLabel" data-key="' + esc(k) + '" value="' + esc(d.areas[k].label) + '" style="flex:1;">' +
+        '<span style="font-size:11px; color:#93A1AB; font-family:\'IBM Plex Mono\',monospace; min-width:54px; text-align:right;">' + used + " rol" + (used === 1 ? "" : "es") + "</span>" +
+        '<button class="f-iconbtn" data-act="areaDel" data-key="' + esc(k) + '" title="Eliminar área"' + (used ? " disabled style=\"opacity:.35; cursor:not-allowed;\"" : "") + ">×</button>" +
+      "</div>";
+    }).join("");
+
+    var changelogHtml = (d.changelog || []).slice(0, 12).map(function (c) {
+      return '<div style="font-size:12px; color:#4A5963; padding:5px 0; border-bottom:1px solid #EEF1F3;"><span style="font-family:\'IBM Plex Mono\',monospace; color:#8593A0;">' + esc(c.fecha) + "</span> · " + esc(c.detalle) + "</div>";
+    }).join("") || '<div style="font-size:12px; color:#93A1AB;">Sin registros.</div>';
+
+    host.innerHTML =
+      '<div class="og-noprint" data-act="closeOrg" style="position:fixed; inset:0; background:rgba(15,36,46,.28); z-index:50; animation:ogFade .18s;"></div>' +
+      '<aside class="og-noprint" style="position:fixed; top:0; right:0; height:100vh; width:500px; max-width:96vw; background:#fff; z-index:51; box-shadow:-12px 0 40px rgba(15,62,87,.2); display:flex; flex-direction:column; animation:ogSlideIn .22s cubic-bezier(.2,.8,.2,1);">' +
+        '<div style="flex:0 0 auto; padding:16px 22px; background:#0F3E57; color:#fff; display:flex; justify-content:space-between; align-items:center;"><div><div style="font-family:\'Space Grotesk\'; font-weight:700; font-size:17px;">Organización y datos</div><div style="font-size:11px; color:#9FD9C9; font-family:\'IBM Plex Mono\',monospace; margin-top:2px;">Editá la empresa, las áreas y exportá la base txt</div></div><button data-act="closeOrg" style="width:32px; height:32px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.12); color:#fff; font-size:16px; cursor:pointer;">✕</button></div>' +
+        '<div style="flex:1 1 auto; overflow-y:auto; padding:14px 22px 24px;">' +
+          '<div class="f-grid2 f-section">' +
+            '<div><label class="f-label">Empresa</label><input class="f-input" data-act="metaEmpresa" value="' + esc(d.meta.empresa) + '"></div>' +
+            '<div><label class="f-label">Subtítulo</label><input class="f-input" data-act="metaSubtitle" value="' + esc(d.meta.subtitle) + '"></div>' +
+          "</div>" +
+          '<div class="f-section"><label class="f-label">Áreas / departamentos</label>' + areaRows +
+            '<div style="display:flex; gap:8px; margin-top:8px;"><input class="f-input" id="ogNewArea" placeholder="Nombre de nueva área" style="flex:1;"><button class="btn btn-sm btn-dark" data-act="areaAdd">＋ Agregar área</button></div>' +
+            '<div class="f-hint">Solo se pueden eliminar áreas sin roles asignados.</div></div>' +
+          '<div class="f-section" style="border-top:1px solid #EDF1F3; padding-top:16px;"><label class="f-label">Base de datos (texto plano · GitHub)</label>' +
+            '<div style="display:flex; flex-wrap:wrap; gap:8px;">' +
+              '<button class="btn btn-primary btn-sm" data-act="export">⬇ Exportar org-data.js</button>' +
+              '<button class="btn btn-sm" data-act="exportJson">⬇ Exportar .json</button>' +
+              '<button class="btn btn-sm" data-act="copyData">⧉ Copiar</button>' +
+              '<button class="btn btn-sm" data-act="importTrigger">⬆ Importar archivo</button>' +
+              (App.dirty ? '<button class="btn btn-sm btn-danger" data-act="discardLocal">↩ Descartar cambios locales</button>' : "") +
+            "</div>" +
+            '<div class="f-hint">Reemplazá <b>org-data.js</b> en tu repo con el archivo exportado y publicá (commit + push). GitHub Pages mostrará los cambios.</div></div>' +
+          '<div class="f-section" style="border-top:1px solid #EDF1F3; padding-top:16px;"><label class="f-label">Historial de cambios</label>' + changelogHtml + "</div>" +
+        "</div>" +
+      "</aside>";
+  }
+
+  // ============================================================
+  //  Transform (zoom / pan) — sin re-render del árbol
+  // ============================================================
+  function applyTransform() {
+    var st = App.state, layer = $("ogLayer");
+    if (layer) layer.style.transform = "translate(" + st.panX + "px," + st.panY + "px) scale(" + st.zoom + ")";
+    var z = $("ogZoomPct"); if (z) z.textContent = Math.round(st.zoom * 100) + "%";
+  }
+  function zoomAt(mx, my, f) {
+    var st = App.state, z = clamp(st.zoom * f, 0.25, 2.4), k = z / st.zoom;
+    st.panX = mx - (mx - st.panX) * k; st.panY = my - (my - st.panY) * k; st.zoom = z;
+    applyTransform();
+  }
+  function zoomBtn(f) {
+    var el = $("ogCanvas");
+    if (!el) return zoomAt(300, 300, f);
+    zoomAt(el.clientWidth / 2, el.clientHeight / 2, f);
+  }
+  function fit() {
+    var el = $("ogCanvas"), st = App.state;
+    if (!el || !App._bounds) return;
+    var cw = el.clientWidth, ch = el.clientHeight, pad = 90;
+    var z = clamp(Math.min((cw - pad) / App._bounds.w, (ch - pad) / App._bounds.h), 0.25, 1.15);
+    st.zoom = z;
+    st.panX = Math.max((cw - App._bounds.w * z) / 2, 24);
+    st.panY = Math.max((ch - App._bounds.h * z) / 2, 24);
+    applyTransform();
+  }
+
+  // ============================================================
+  //  Interacción del canvas: pan + pinch (pointer events)
+  // ============================================================
+  var ptrs = new Map(), panStart = null, pinchStart = null;
+  function canvasPoint(e) { var r = $("ogCanvas").getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  function onPointerDown(e) {
+    if (e.target.closest("[data-node], #ogMetrics, #ogLegend, #ogAddBtn, button, input, select, a")) return;
+    var el = $("ogCanvas");
+    try { el.setPointerCapture(e.pointerId); } catch (x) {}
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 1) { panStart = { x: e.clientX, y: e.clientY, px: App.state.panX, py: App.state.panY }; el.style.cursor = "grabbing"; pinchStart = null; }
+    else if (ptrs.size === 2) { panStart = null; startPinch(); }
+  }
+  function startPinch() {
+    var pts = Array.from(ptrs.values());
+    var dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
+    var r = $("ogCanvas").getBoundingClientRect();
+    pinchStart = { dist: Math.hypot(dx, dy) || 1, zoom: App.state.zoom, cx: (pts[0].x + pts[1].x) / 2 - r.left, cy: (pts[0].y + pts[1].y) / 2 - r.top };
+  }
+  function onPointerMove(e) {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size >= 2 && pinchStart) {
+      var pts = Array.from(ptrs.values());
+      var dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+      var z = clamp(pinchStart.zoom * (dist / pinchStart.dist), 0.25, 2.4), st = App.state, k = z / st.zoom;
+      st.panX = pinchStart.cx - (pinchStart.cx - st.panX) * k;
+      st.panY = pinchStart.cy - (pinchStart.cy - st.panY) * k;
+      st.zoom = z; applyTransform();
+    } else if (panStart) {
+      App.state.panX = panStart.px + (e.clientX - panStart.x);
+      App.state.panY = panStart.py + (e.clientY - panStart.y);
+      applyTransform();
+    }
+  }
+  function onPointerUp(e) {
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinchStart = null;
+    if (ptrs.size === 0) { panStart = null; var el = $("ogCanvas"); if (el) el.style.cursor = "grab"; }
+    else if (ptrs.size === 1) { var p = Array.from(ptrs.values())[0]; panStart = { x: p.x, y: p.y, px: App.state.panX, py: App.state.panY }; }
+  }
+  function onWheel(e) { e.preventDefault(); var pt = canvasPoint(e); zoomAt(pt.x, pt.y, e.deltaY < 0 ? 1.12 : 0.89); }
+
+  // ============================================================
+  //  Acciones de edición
+  // ============================================================
+  function newDraft() {
+    var d = App.data, st = App.state;
+    var parent = (st.selectedId && byIdSafe(st.selectedId)) ? st.selectedId : null;
+    var firstArea = Object.keys(d.areas)[0] || "general";
+    return {
+      id: uid("rol"), title: "Nuevo rol", name: "(a completar)", area: firstArea, reportsTo: parent,
+      dotted: [], seniority: "Semi-Senior", band: "—", critical: false, successor: null, status: "Vacante",
+      location: "Buenos Aires", modality: "Híbrido", contract: "Full-time", ingreso: "—",
+      lastReview: "—", nextReview: "—", headcount: 1, mission: "", responsibilities: [], kpis: [],
+      authority: "—", careerNext: "—", skillsGap: "—"
+    };
+  }
+  function byIdSafe(id) { return App.data.nodes.filter(function (n) { return n.id === id; })[0]; }
+
+  function isAncestor(ancestorId, nodeId) {
+    // ¿ancestorId es ancestro de nodeId? (recorre hacia arriba desde nodeId)
+    var ix = idx(), cur = ix.byId[nodeId];
+    var guard = 0;
+    while (cur && cur.reportsTo && guard++ < 1000) {
+      if (cur.reportsTo === ancestorId) return true;
+      cur = ix.byId[cur.reportsTo];
+    }
+    return false;
+  }
+
+  function saveNode() {
+    var st = App.state, n = st.draft;
+    if (!n) return;
+    n.title = (n.title || "").trim();
+    if (!n.title) { toast("El título del puesto es obligatorio.", "err"); return; }
+    if (n.reportsTo === n.id) { toast("Un rol no puede reportarse a sí mismo.", "err"); return; }
+    if (n.successor === n.id) { toast("El sucesor no puede ser el mismo rol.", "err"); return; }
+    if (n.reportsTo && !st.draftIsNew && isAncestor(n.id, n.reportsTo)) {
+      toast("Ese 'Reporta a' crearía un ciclo (es un subordinado de este rol).", "err"); return;
+    }
+    n.dotted = (n.dotted || []).filter(function (t) { return t !== n.id; });
+    n.headcount = Number(n.headcount) || 1;
+
+    var isNew = st.draftIsNew, snapshot = clone(n);
+    commit(function (data) {
+      if (isNew) data.nodes.push(snapshot);
+      else {
+        var i = data.nodes.findIndex(function (x) { return x.id === snapshot.id; });
+        if (i >= 0) data.nodes[i] = snapshot; else data.nodes.push(snapshot);
+      }
+    }, (isNew ? "Alta de rol: " : "Edición de rol: ") + snapshot.title);
+
+    st.selectedId = snapshot.id; st.draft = null; st.draftIsNew = false; st.panelMode = "view";
+    renderAll();
+    toast(isNew ? "Rol creado ✓" : "Cambios guardados ✓", "ok");
+  }
+
+  function deleteNode() {
+    var st = App.state;
+    var id = (st.draft && !st.draftIsNew) ? st.draft.id : st.selectedId;
+    if (!id) return;
+    var n = byIdSafe(id); if (!n) return;
+    var ix = idx(), kids = ix.children[id] || [];
+    var msg = "¿Eliminar el rol «" + n.title + "»?" + (kids.length ? "\n\nSus " + kids.length + " reporte(s) directo(s) pasarán a depender de su superior." : "");
+    if (!window.confirm(msg)) return;
+    var parentId = n.reportsTo || null;
+    commit(function (data) {
+      data.nodes.forEach(function (x) {
+        if (x.reportsTo === id) x.reportsTo = parentId;
+        if (x.successor === id) x.successor = null;
+        if (Array.isArray(x.dotted)) x.dotted = x.dotted.filter(function (t) { return t !== id; });
+      });
+      data.nodes = data.nodes.filter(function (x) { return x.id !== id; });
+    }, "Baja de rol: " + n.title);
+    st.selectedId = null; st.draft = null; st.draftIsNew = false; st.panelMode = "view";
+    renderAll();
+    toast("Rol eliminado ✓", "ok");
+  }
+
+  function markVacant() {
+    var id = App.state.selectedId; if (!id) return;
+    var n = byIdSafe(id); if (!n) return;
+    commit(function () { n.status = "Vacante"; n.name = "VACANTE"; }, "Puesto marcado como vacante: " + n.title);
+    renderAll();
+    toast("Puesto marcado como vacante", "ok");
+  }
+
+  // ============================================================
+  //  Áreas
+  // ============================================================
+  function areaAdd() {
+    var input = $("ogNewArea"); if (!input) return;
+    var label = (input.value || "").trim();
+    if (!label) { toast("Escribí un nombre de área.", "err"); return; }
+    var key = label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || ("area-" + Date.now().toString(36));
+    if (App.data.areas[key]) { toast("Ya existe un área con ese nombre.", "err"); return; }
+    var palette = ["#1E7A8C", "#2A9D8F", "#3A7D44", "#6A8D2F", "#9A6A3A", "#7A5C8E", "#B0566E", "#566B7A", "#3E5066", "#4A7C59"];
+    var color = palette[Object.keys(App.data.areas).length % palette.length];
+    commit(function (data) { data.areas[key] = { label: label, color: color }; }, "Alta de área: " + label);
+    renderOrg(); renderToolbar(); renderCanvas();
+    toast("Área agregada ✓", "ok");
+  }
+  function areaDel(key) {
+    var counts = 0; App.data.nodes.forEach(function (n) { if (n.area === key) counts++; });
+    if (counts) { toast("No se puede: el área tiene roles asignados.", "err"); return; }
+    var label = App.data.areas[key] ? App.data.areas[key].label : key;
+    commit(function (data) { delete data.areas[key]; }, "Baja de área: " + label);
+    renderOrg(); renderToolbar(); renderCanvas();
+    toast("Área eliminada ✓", "ok");
+  }
+
+  // ============================================================
+  //  Exportar / importar
+  // ============================================================
+  function serialize(d) {
+    var copy = clone(d);
+    copy.meta.actualizado = today();
+    return "/* ============================================================\n" +
+      "   " + (copy.meta.empresa || "Organización") + " — Datos del organigrama\n" +
+      "   Generado por el editor web el " + today() + ".\n" +
+      "   Texto plano y editable: reemplazá este archivo en tu repo y publicá.\n" +
+      "   status admitidos: " + STATUS_ORDER.join(" | ") + "\n" +
+      "   ============================================================ */\n" +
+      "window.GOODAPPS_ORG = " + JSON.stringify(copy, null, 2) + ";\n";
+  }
+  function download(filename, text, mime) {
+    var blob = new Blob([text], { type: (mime || "text/plain") + ";charset=utf-8" });
+    var url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+  }
+  function exportJs() { App.data.meta.actualizado = today(); saveLocal(); download("org-data.js", serialize(App.data), "text/javascript"); toast("org-data.js exportado — commitealo a tu repo", "ok"); }
+  function exportJson() { var c = clone(App.data); c.meta.actualizado = today(); download("org-data.json", JSON.stringify(c, null, 2), "application/json"); toast("org-data.json exportado", "ok"); }
+  function copyData() {
+    var text = serialize(App.data);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { toast("Contenido copiado al portapapeles", "ok"); }, function () { toast("No se pudo copiar.", "err"); });
+    } else { toast("El portapapeles no está disponible.", "err"); }
+  }
+  function parseImported(text) {
+    // 1) intentar JSON puro
+    try { var j = JSON.parse(text); if (valid(j)) return j; } catch (e) {}
+    // 2) intentar formato window.GOODAPPS_ORG = {...}  (en un sandbox controlado)
+    try {
+      var sandbox = {};
+      var fn = new Function("window", text + "\n;return window.GOODAPPS_ORG;");
+      var obj = fn(sandbox);
+      if (valid(obj)) return obj;
+    } catch (e) {}
+    return null;
+  }
+  function importFile(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var parsed = parseImported(String(reader.result || ""));
+      if (!parsed) { toast("Archivo no reconocido (debe ser org-data.js o .json válido).", "err"); return; }
+      App.data = normalize(parsed); App.dirty = true; saveLocal();
+      App.state.selectedId = null; App.state.draft = null; App.state.collapsed = {};
+      renderAll(); fit();
+      toast("Datos importados ✓ — recordá exportar para publicar", "ok");
+    };
+    reader.onerror = function () { toast("No se pudo leer el archivo.", "err"); };
+    reader.readAsText(file);
+  }
+
+  // ============================================================
+  //  Toast
+  // ============================================================
+  var toastTimer = null;
+  function toast(msg, type) {
+    var host = $("ogToast");
+    var el = document.createElement("div");
+    el.className = "og-toast" + (type ? " " + type : "");
+    el.textContent = msg;
+    host.appendChild(el);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 3200);
+  }
+
+  // ============================================================
+  //  Routing de eventos
+  // ============================================================
+  function openNode(id) {
+    var st = App.state;
+    st.selectedId = id;
+    if (st.editMode) { st.draft = clone(byIdSafe(id)); st.draftIsNew = false; st.panelMode = "edit"; }
+    else { st.panelMode = "view"; st.draft = null; }
+    renderPanel();
+  }
+  function toggleCollapse(id) { var c = App.state.collapsed; c[id] = !c[id]; renderCanvas(); }
+
+  function handleClick(e) {
+    var caret = e.target.closest("[data-caret]");
+    if (caret) { toggleCollapse(caret.getAttribute("data-caret")); return; }
+    var node = e.target.closest("[data-node]");
+    if (node && $("ogLayer").contains(node)) {
+      var id = node.getAttribute("data-node");
+      if (node.hasAttribute("data-virtual")) toggleCollapse(id); else openNode(id);
+      return;
+    }
+    var actEl = e.target.closest("[data-act]");
+    if (!actEl) return;
+    var act = actEl.getAttribute("data-act"), st = App.state;
+    switch (act) {
+      case "view": st.view = actEl.getAttribute("data-view"); st.collapsed = {}; st.selectedId = null; renderHeader(); renderCanvas(); fit(); break;
+      case "toggleEdit": st.editMode = !st.editMode; if (!st.editMode && st.panelMode === "edit") { st.panelMode = "view"; st.draft = null; } renderHeader(); renderToolbar(); renderCanvas(); renderPanel(); break;
+      case "showDiag": st.showDiag = true; renderDiag(); break;
+      case "closeDiag": st.showDiag = false; renderDiag(); break;
+      case "showOrg": st.showOrg = true; renderOrg(); break;
+      case "closeOrg": st.showOrg = false; renderOrg(); break;
+      case "toggleDotted": st.showDotted = !st.showDotted; renderToolbar(); renderCanvas(); break;
+      case "zoomIn": zoomBtn(1.18); break;
+      case "zoomOut": zoomBtn(0.85); break;
+      case "fit": fit(); break;
+      case "clearFilters": st.filters = { area: "", sede: "", estado: "", seniority: "" }; renderToolbar(); renderCanvas(); break;
+      case "print": window.print(); break;
+      case "export": exportJs(); renderHeader(); renderDirty(); break;
+      case "exportJson": exportJson(); break;
+      case "copyData": copyData(); break;
+      case "importTrigger": $("ogFile").click(); break;
+      case "discardLocal": discardLocal(); break;
+      case "closePanel": st.selectedId = null; st.draft = null; st.draftIsNew = false; st.panelMode = "view"; renderPanel(); break;
+      case "panelEdit": st.draft = clone(byIdSafe(st.selectedId)); st.draftIsNew = false; st.panelMode = "edit"; renderPanel(); break;
+      case "addRole": st.editMode = true; st.draft = newDraft(); st.draftIsNew = true; st.selectedId = null; st.panelMode = "edit"; renderHeader(); renderToolbar(); renderCanvas(); renderPanel(); break;
+      case "saveNode": saveNode(); break;
+      case "deleteNode": deleteNode(); break;
+      case "markVacant": markVacant(); break;
+      case "addListItem": { var f = actEl.getAttribute("data-list"); st.draft[f] = st.draft[f] || []; st.draft[f].push(""); renderPanel(); break; }
+      case "delListItem": { var f2 = actEl.getAttribute("data-list"), i2 = +actEl.getAttribute("data-idx"); st.draft[f2].splice(i2, 1); renderPanel(); break; }
+      case "areaAdd": areaAdd(); break;
+      case "areaDel": areaDel(actEl.getAttribute("data-key")); break;
+      default: break;
+    }
+  }
+
+  function handleChange(e) {
+    var t = e.target, st = App.state;
+    if ($("ogPanel").contains(t)) { updateDraftFromInput(t); return; }
+    var act = t.getAttribute("data-act");
+    if (act === "filterArea") {
+      var label = t.value, key = Object.keys(App.data.areas).find(function (k) { return App.data.areas[k].label === label; }) || "";
+      st.filters.area = key; renderToolbar(); renderCanvas(); return;
+    }
+    if (act === "filterSede") { st.filters.sede = t.value; renderToolbar(); renderCanvas(); return; }
+    if (act === "filterEstado") { st.filters.estado = t.value; renderToolbar(); renderCanvas(); return; }
+    if (act === "filterSeniority") { st.filters.seniority = t.value; renderToolbar(); renderCanvas(); return; }
+    if (act === "areaColor") { var k1 = t.getAttribute("data-key"); commit(function (d) { d.areas[k1].color = t.value; }); renderCanvas(); renderHeader(); return; }
+  }
+
+  function handleInput(e) {
+    var t = e.target, st = App.state;
+    if ($("ogPanel").contains(t)) { updateDraftFromInput(t); return; }
+    var act = t.getAttribute("data-act");
+    if (act === "search") { st.search = t.value; renderCanvas(); return; }
+    if (act === "metaEmpresa") { commit(function (d) { d.meta.empresa = t.value; }); renderHeader(); return; }
+    if (act === "metaSubtitle") { commit(function (d) { d.meta.subtitle = t.value; }); renderHeader(); return; }
+    if (act === "areaLabel") { var k = t.getAttribute("data-key"); commit(function (d) { d.areas[k].label = t.value; }); renderCanvas(); return; }
+  }
+
+  function updateDraftFromInput(t) {
+    var st = App.state; if (!st.draft) return;
+    var f = t.getAttribute("data-field");
+    if (f) {
+      if (t.type === "checkbox") st.draft[f] = t.checked;
+      else if (t.type === "number") st.draft[f] = t.value === "" ? "" : Number(t.value);
+      else st.draft[f] = (f === "reportsTo" || f === "successor") ? (t.value || null) : t.value;
+      return;
+    }
+    var li = t.getAttribute("data-list");
+    if (li) { var i = +t.getAttribute("data-idx"); st.draft[li] = st.draft[li] || []; st.draft[li][i] = t.value; return; }
+    if (t.hasAttribute("data-dotted")) { st.draft.dotted = Array.prototype.map.call(t.selectedOptions, function (o) { return o.value; }); return; }
+  }
+
+  // ============================================================
+  //  Render maestro + init
+  // ============================================================
+  function renderAll() {
+    renderHeader(); renderDirty(); renderToolbar(); renderCanvas(); renderPanel(); renderDiag(); renderOrg();
+  }
+
+  function init() {
+    if (!App.data) loadData();
+    if (!App.data || !App.data.nodes.length) {
+      // Sigue mostrando "cargando" si org-data.js no definió window.GOODAPPS_ORG
+      if (!window.GOODAPPS_ORG) { $("ogEmpty").innerHTML = '<div style="font-size:13px; color:#B5413C; font-family:\'IBM Plex Mono\',monospace;">No se encontró org-data.js</div>'; return; }
+    }
+    var app = $("app");
+    app.addEventListener("click", handleClick);
+    app.addEventListener("change", handleChange);
+    app.addEventListener("input", handleInput);
+    $("ogFile").addEventListener("change", function (e) { var f = e.target.files && e.target.files[0]; if (f) importFile(f); e.target.value = ""; });
+
+    var canvas = $("ogCanvas");
+    canvas.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        var st = App.state;
+        if (st.showOrg) { st.showOrg = false; renderOrg(); }
+        else if (st.showDiag) { st.showDiag = false; renderDiag(); }
+        else if (st.selectedId || st.draft) { st.selectedId = null; st.draft = null; st.draftIsNew = false; st.panelMode = "view"; renderPanel(); }
+      }
+    });
+    var rt = null;
+    window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(fit, 150); });
+
+    renderAll();
+    requestAnimationFrame(function () { requestAnimationFrame(fit); });
+    setTimeout(fit, 200);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+</script>
+</body>
+</html>
