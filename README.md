@@ -8,7 +8,7 @@ tal cual en GitHub Pages.
 
 ## Qué hace
 
-- **Mapa mental jerárquico** (izquierda → derecha) con conectores curvos, **zoom**, **paneo** y **expandir/colapsar** ramas.
+- **Organigrama jerárquico** (de arriba hacia abajo) con conectores curvos, **zoom**, **paneo** y **expandir/colapsar** ramas.
 - **Nodos clickeables**: abren una ficha lateral con misión, responsabilidades, KPIs, línea de reporte, líneas
   punteadas (matricial), plan de sucesión, fechas, ubicación y modalidad.
 - **Buscador** + **filtros** (área, sede, estado, seniority) y **5 vistas**: Jerárquica · Por función · Por sede ·

@@ -290,17 +290,17 @@
   }
 
   function layoutTree(vw) {
-    var pos = {}, ROW = NODE_H + V_GAP, nextY = 0, st = App.state;
+    var pos = {}, COL = NODE_W + 36, ROWY = NODE_H + 62, nextX = 0, st = App.state;
     function place(id, depth) {
       var kids = st.collapsed[id] ? [] : (vw.ch[id] || []);
-      pos[id] = { x: depth * (NODE_W + H_GAP), y: 0, depth: depth };
-      if (kids.length === 0) { pos[id].y = nextY; nextY += ROW; }
+      pos[id] = { x: 0, y: depth * ROWY, depth: depth };
+      if (kids.length === 0) { pos[id].x = nextX; nextX += COL; }
       else {
         kids.forEach(function (k) { place(k, depth + 1); });
-        pos[id].y = (pos[kids[0]].y + pos[kids[kids.length - 1]].y) / 2;
+        pos[id].x = (pos[kids[0]].x + pos[kids[kids.length - 1]].x) / 2;
       }
     }
-    vw.roots.forEach(function (r, i) { if (i > 0) nextY += ROW * 0.6; place(r, 0); });
+    vw.roots.forEach(function (r, i) { if (i > 0) nextX += COL * 0.6; place(r, 0); });
     return pos;
   }
 
@@ -479,8 +479,8 @@
     var edges = [], ec = "#C3CCD2";
     function drawEdge(pid, cid, color, dash, width) {
       var p = pos[pid], c = pos[cid]; if (!p || !c) return;
-      var x1 = p.x + NODE_W, y1 = p.y + NODE_H / 2, x2 = c.x, y2 = c.y + NODE_H / 2, mx = (x1 + x2) / 2;
-      edges.push({ d: "M" + x1 + "," + y1 + " C" + mx + "," + y1 + " " + mx + "," + y2 + " " + x2 + "," + y2, color: color, dash: dash || "0", width: width || 1.7 });
+      var x1 = p.x + NODE_W / 2, y1 = p.y + NODE_H, x2 = c.x + NODE_W / 2, y2 = c.y, my = (y1 + y2) / 2;
+      edges.push({ d: "M" + x1 + "," + y1 + " C" + x1 + "," + my + " " + x2 + "," + my + " " + x2 + "," + y2, color: color, dash: dash || "0", width: width || 1.7 });
     }
     Object.keys(vw.ch).forEach(function (pid) {
       if (st.collapsed[pid]) return;
@@ -492,8 +492,8 @@
         (n.dotted || []).forEach(function (tid) {
           if (!pos[tid]) return;
           var a = pos[n.id], b = pos[tid];
-          var x1 = a.x, y1 = a.y + NODE_H / 2, x2 = b.x + NODE_W, y2 = b.y + NODE_H / 2, mx = (x1 + x2) / 2;
-          edges.push({ d: "M" + x1 + "," + y1 + " C" + mx + "," + y1 + " " + mx + "," + y2 + " " + x2 + "," + y2, color: "#9AA7B0", dash: "5 6", width: 1.4 });
+          var x1 = a.x + NODE_W / 2, y1 = a.y, x2 = b.x + NODE_W / 2, y2 = b.y + NODE_H, my = (y1 + y2) / 2;
+          edges.push({ d: "M" + x1 + "," + y1 + " C" + x1 + "," + my + " " + x2 + "," + my + " " + x2 + "," + y2, color: "#9AA7B0", dash: "5 6", width: 1.4 });
         });
       });
     }
@@ -504,7 +504,7 @@
     // ----- nodes -----
     var nodesHtml = ids.map(function (id) {
       var p = pos[id], isVirtual = !!vw.virt[id], hasKids = (vw.ch[id] || []).length > 0;
-      var caretStyle = "position:absolute; right:-13px; top:50%; transform:translateY(-50%); width:24px; height:24px; border-radius:50%; background:#fff; border:1px solid #D5DDE2; display:flex; align-items:center; justify-content:center; font-size:12px; color:" + BRAND + "; box-shadow:0 1px 3px rgba(0,0,0,.14); z-index:4; cursor:pointer;";
+      var caretStyle = "position:absolute; bottom:-13px; left:50%; transform:translateX(-50%); width:24px; height:24px; border-radius:50%; background:#fff; border:1px solid #D5DDE2; display:flex; align-items:center; justify-content:center; font-size:12px; color:" + BRAND + "; box-shadow:0 1px 3px rgba(0,0,0,.14); z-index:4; cursor:pointer;";
       var caret = hasKids ? '<div data-caret="' + esc(id) + '" style="' + caretStyle + '">' + (st.collapsed[id] ? "+" : "–") + "</div>" : "";
 
       if (isVirtual) {
