@@ -40,6 +40,10 @@ window.GOODAPPS_ORG = {
     "Interino":    { color: "#C9A227" }
   },
 
+  /* Sedes / ubicaciones disponibles (editables desde la web o acá).
+     El campo "location" de cada rol debería coincidir con una de estas. */
+  sedes: ["Buenos Aires", "Remoto", "Distribuido"],
+
   changelog: [
     { fecha: "2026-06-16", autor: "Sistema", detalle: "Estructura inicial estándar de empresa de software creada (plantilla de ejemplo)." }
   ],

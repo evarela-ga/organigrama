@@ -184,6 +184,8 @@
       n.kpis = Array.isArray(n.kpis) ? n.kpis : [];
       if (n.headcount == null) n.headcount = 1;
     });
+    if (!Array.isArray(d.sedes)) d.sedes = [];
+    d.nodes.forEach(function (n) { if (n.location && d.sedes.indexOf(n.location) < 0) d.sedes.push(n.location); });
     return d;
   }
   function valid(d) { return !!(d && d.meta && d.areas && d.nodes && Array.isArray(d.nodes)); }
@@ -708,7 +710,7 @@
           listEditor("responsibilities", "Responsabilidades clave") +
           listEditor("kpis", "KPIs / OKRs principales") +
           '<div class="f-grid2 f-section">' +
-            '<div><label class="f-label">Ubicación / sede</label><input class="f-input" data-field="location" value="' + esc(n.location) + '"></div>' +
+            '<div><label class="f-label">Ubicación / sede</label><input class="f-input" data-field="location" list="ogSedesList" value="' + esc(n.location) + '" placeholder="Elegí o escribí una sede"><datalist id="ogSedesList">' + (d.sedes || []).map(function (s) { return '<option value="' + esc(s) + '"></option>'; }).join("") + '</datalist></div>' +
             '<div><label class="f-label">Modalidad</label><input class="f-input" data-field="modality" value="' + esc(n.modality) + '" placeholder="Presencial / Híbrido / Remoto"></div>' +
             '<div><label class="f-label">Contratación</label><input class="f-input" data-field="contract" value="' + esc(n.contract) + '" placeholder="Full-time / Part-time / Externo"></div>' +
             '<div><label class="f-label">Headcount</label><input class="f-input" type="number" min="1" data-field="headcount" value="' + esc(n.headcount) + '"></div>' +
@@ -808,6 +810,16 @@
       "</div>";
     }).join("");
 
+    var sedeCounts = {}; d.nodes.forEach(function (n) { if (n.location) sedeCounts[n.location] = (sedeCounts[n.location] || 0) + 1; });
+    var sedeRows = (d.sedes || []).map(function (s) {
+      var used = sedeCounts[s] || 0;
+      return '<div style="display:flex; align-items:center; gap:8px; margin-bottom:7px;">' +
+        '<input class="f-input" data-act="sedeRename" data-old="' + esc(s) + '" value="' + esc(s) + '" style="flex:1;">' +
+        '<span style="font-size:11px; color:#93A1AB; font-family:\'IBM Plex Mono\',monospace; min-width:54px; text-align:right;">' + used + " rol" + (used === 1 ? "" : "es") + "</span>" +
+        '<button class="f-iconbtn" data-act="sedeDel" data-key="' + esc(s) + '" title="Eliminar sede"' + (used ? " disabled style=\"opacity:.35; cursor:not-allowed;\"" : "") + ">×</button>" +
+      "</div>";
+    }).join("");
+
     var changelogHtml = (d.changelog || []).slice(0, 12).map(function (c) {
       return '<div style="font-size:12px; color:#4A5963; padding:5px 0; border-bottom:1px solid #EEF1F3;"><span style="font-family:\'IBM Plex Mono\',monospace; color:#8593A0;">' + esc(c.fecha) + "</span> · " + esc(c.detalle) + "</div>";
     }).join("") || '<div style="font-size:12px; color:#93A1AB;">Sin registros.</div>';
@@ -824,6 +836,9 @@
           '<div class="f-section"><label class="f-label">Áreas / departamentos</label>' + areaRows +
             '<div style="display:flex; gap:8px; margin-top:8px;"><input class="f-input" id="ogNewArea" placeholder="Nombre de nueva área" style="flex:1;"><button class="btn btn-sm btn-dark" data-act="areaAdd">＋ Agregar área</button></div>' +
             '<div class="f-hint">Solo se pueden eliminar áreas sin roles asignados.</div></div>' +
+          '<div class="f-section"><label class="f-label">Sedes / ubicaciones</label>' + sedeRows +
+            '<div style="display:flex; gap:8px; margin-top:8px;"><input class="f-input" id="ogNewSede" placeholder="Nombre de nueva sede" style="flex:1;"><button class="btn btn-sm btn-dark" data-act="sedeAdd">＋ Agregar sede</button></div>' +
+            '<div class="f-hint">Renombrar una sede actualiza todos los roles que la usan. Solo se eliminan sedes sin roles.</div></div>' +
           '<div class="f-section" style="border-top:1px solid #EDF1F3; padding-top:16px;"><label class="f-label">Base de datos (texto plano · GitHub)</label>' +
             '<div style="display:flex; flex-wrap:wrap; gap:8px;">' +
               '<button class="btn btn-primary btn-sm" data-act="export">⬇ Exportar org-data.js</button>' +
@@ -950,9 +965,12 @@
     }
     n.dotted = (n.dotted || []).filter(function (t) { return t !== n.id; });
     n.headcount = Number(n.headcount) || 1;
+    if (typeof n.location === "string") n.location = n.location.trim();
 
     var isNew = st.draftIsNew, snapshot = clone(n);
     commit(function (data) {
+      data.sedes = data.sedes || [];
+      if (snapshot.location && data.sedes.indexOf(snapshot.location) < 0) data.sedes.push(snapshot.location);
       if (isNew) data.nodes.push(snapshot);
       else {
         var i = data.nodes.findIndex(function (x) { return x.id === snapshot.id; });
@@ -1017,6 +1035,40 @@
     commit(function (data) { delete data.areas[key]; }, "Baja de área: " + label);
     renderOrg(); renderToolbar(); renderCanvas();
     toast("Área eliminada ✓", "ok");
+  }
+
+  // ============================================================
+  //  Sedes
+  // ============================================================
+  function sedeAdd() {
+    var input = $("ogNewSede"); if (!input) return;
+    var name = (input.value || "").trim();
+    if (!name) { toast("Escribí un nombre de sede.", "err"); return; }
+    if ((App.data.sedes || []).indexOf(name) >= 0) { toast("Esa sede ya existe.", "err"); return; }
+    commit(function (data) { data.sedes = data.sedes || []; data.sedes.push(name); }, "Alta de sede: " + name);
+    renderOrg(); renderToolbar();
+    toast("Sede agregada ✓", "ok");
+  }
+  function sedeDel(name) {
+    var used = 0; App.data.nodes.forEach(function (n) { if (n.location === name) used++; });
+    if (used) { toast("No se puede: la sede tiene roles asignados.", "err"); return; }
+    commit(function (data) { data.sedes = (data.sedes || []).filter(function (s) { return s !== name; }); }, "Baja de sede: " + name);
+    renderOrg(); renderToolbar();
+    toast("Sede eliminada ✓", "ok");
+  }
+  function sedeRename(oldName, newName) {
+    newName = (newName || "").trim();
+    if (!newName) { toast("El nombre de la sede no puede quedar vacío.", "err"); renderOrg(); return; }
+    if (newName === oldName) return;
+    var count = 0;
+    commit(function (data) {
+      data.nodes.forEach(function (nd) { if (nd.location === oldName) { nd.location = newName; count++; } });
+      data.sedes = (data.sedes || []).filter(function (s) { return s !== oldName && s !== newName; });
+      data.sedes.push(newName);
+    }, "Sede renombrada: " + oldName + " -> " + newName);
+    renderOrg(); renderToolbar(); renderCanvas();
+    if (App.state.selectedId) renderPanel();
+    toast("Sede renombrada en " + count + " rol" + (count === 1 ? "" : "es") + " ✓", "ok");
   }
 
   // ============================================================
@@ -1138,6 +1190,8 @@
       case "delListItem": { var f2 = actEl.getAttribute("data-list"), i2 = +actEl.getAttribute("data-idx"); st.draft[f2].splice(i2, 1); renderPanel(); break; }
       case "areaAdd": areaAdd(); break;
       case "areaDel": areaDel(actEl.getAttribute("data-key")); break;
+      case "sedeAdd": sedeAdd(); break;
+      case "sedeDel": sedeDel(actEl.getAttribute("data-key")); break;
       default: break;
     }
   }
@@ -1154,6 +1208,7 @@
     if (act === "filterEstado") { st.filters.estado = t.value; renderToolbar(); renderCanvas(); return; }
     if (act === "filterSeniority") { st.filters.seniority = t.value; renderToolbar(); renderCanvas(); return; }
     if (act === "areaColor") { var k1 = t.getAttribute("data-key"); commit(function (d) { d.areas[k1].color = t.value; }); renderCanvas(); renderHeader(); return; }
+    if (act === "sedeRename") { sedeRename(t.getAttribute("data-old"), t.value); return; }
   }
 
   function handleInput(e) {

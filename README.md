@@ -29,8 +29,8 @@ Tocá **✎ Editar** en la barra superior. Con el modo edición activo:
 - **Asignar / quitar colaborador**: cambiá el campo *Colaborador (nombre)*; el botón **○ Marcar vacante** deja el
   puesto como `Vacante`.
 - **Eliminar rol**: 🗑 en la ficha. Sus reportes directos pasan a depender del superior del rol eliminado.
-- **⚙ Organización**: editás el nombre de la empresa, el subtítulo y las **áreas** (alta/baja/color), y ves el
-  **historial de cambios**.
+- **⚙ Organización**: editás el nombre de la empresa, el subtítulo, las **áreas** (alta/baja/color) y las **sedes**
+  (agregar/eliminar; **renombrar una sede actualiza todos los roles** que la usan), y ves el **historial de cambios**.
 
 ### Cómo se guardan los cambios
 
@@ -53,6 +53,9 @@ También podés **⬆ Importar** un `org-data.js`/`.json` para retomar el trabaj
 ajustá el `status` de cada puesto. No hace falta tocar código.
 
 `status` admitidos: `Ocupado` · `Vacante` · `En búsqueda` · `Onboarding` · `Licencia` · `Interino`.
+
+Las **sedes** disponibles se listan en `sedes: [...]`; el `location` de cada rol debería coincidir con una de ellas
+(si escribís una sede nueva desde la web, se agrega sola a la lista).
 
 Cada nodo (rol) tiene esta forma:
 
